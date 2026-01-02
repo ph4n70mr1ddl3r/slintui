@@ -409,7 +409,7 @@ fn create_card_ui_data(card: &Card) -> CardUI {
     CardUI {
         rank: card.rank.clone().into(),
         suit: card.suit.clone().into(),
-        color: if card.suit == "♥" || card.suit == "♦" {
+        card_color: if card.suit == "♥" || card.suit == "♦" {
             "red".into()
         } else {
             "black".into()
