@@ -1,0 +1,313 @@
+import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
+
+export struct CardUI {
+    rank: string,
+    suit: string,
+    color: string,
+    visible: bool,
+}
+
+export component MainWindow inherits Window {
+    title: "Slint Poker Simulation";
+    width: 900px;
+    height: 650px;
+    background: #1a1a2a;
+
+    in property <int> pot;
+    in property <int> current_bet;
+    in property <string> phase_name;
+    in property <string> current_player_name;
+    in property <bool> show_actions;
+    in property <bool> can_check;
+    in property <bool> can_call;
+    in property <bool> can_fold;
+    in property <bool> can_raise;
+    in property <int> min_raise_amount;
+    in property <bool> animation_active;
+    in property <bool> show_winner;
+    in property <string> winner_name;
+
+    in property <int> player_chips;
+    in property <int> player_bet;
+    in property <string> player_last_action;
+    in property <int> bot_chips;
+    in property <int> bot_bet;
+    in property <string> bot_last_action;
+
+    in property <[CardUI]> player_cards;
+    in property <[CardUI]> bot_cards;
+    in property <[CardUI]> community_cards;
+
+    callback check();
+    callback call();
+    callback fold();
+    callback raise();
+    callback all_in();
+    callback new_hand();
+
+    VerticalBox {
+        padding: 15px;
+        spacing: 10px;
+
+        HorizontalBox {
+            padding: 10px;
+            spacing: 20px;
+            alignment: center;
+
+            Text {
+                text: "POKER";
+                font-size: 32px;
+                font-weight: 800;
+                color: #ffd700;
+            }
+
+            Text {
+                text: root.phase_name;
+                font-size: 24px;
+                font-weight: 600;
+                color: #ffffff;
+            }
+        }
+
+        HorizontalBox {
+            padding: 5px;
+            spacing: 30px;
+            alignment: center;
+
+            Text {
+                text: "Pot: " + root.pot;
+                font-size: 20px;
+                color: #ffd700;
+            }
+
+            Text {
+                text: "Current Bet: " + root.current_bet;
+                font-size: 18px;
+                color: #aaaaaa;
+            }
+
+            if root.animation_active: Text {
+                text: "Simulating...";
+                font-size: 16px;
+                color: #00ff00;
+                font-weight: 600;
+            }
+        }
+
+        Rectangle {
+            height: 120px;
+            background: #252540;
+            border-radius: 10px;
+
+            VerticalBox {
+                padding: 10px;
+                alignment: center;
+
+                Text {
+                    text: "Bot (AI)";
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: #ff6b6b;
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: center;
+
+                    for card in root.bot_cards: HorizontalBox {
+                        spacing: 5px;
+                        Text {
+                            text: "[" + card.rank + card.suit + "]";
+                            font-size: 16px;
+                            color: card.visible ? (card.color == "red" ? #dd0000 : #000000) : #2a2a3a;
+                        }
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: 15px;
+                    alignment: center;
+
+                    Text {
+                        text: "Chips: " + root.bot_chips;
+                        font-size: 16px;
+                        color: #4ecdc4;
+                    }
+
+                    Text {
+                        text: "Bet: " + root.bot_bet;
+                        font-size: 16px;
+                        color: #ffd700;
+                    }
+                }
+
+                if root.bot_last_action != "": Text {
+                    text: root.bot_last_action;
+                    font-size: 14px;
+                    color: #888888;
+                    font-italic: true;
+                }
+            }
+        }
+
+        Rectangle {
+            height: 140px;
+            background: #1e1e35;
+            border-radius: 10px;
+
+            VerticalBox {
+                padding: 10px;
+                alignment: center;
+
+                Text {
+                    text: "Community Cards";
+                    font-size: 18px;
+                    color: #888888;
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: center;
+
+                    for card in root.community_cards: Text {
+                        text: "[" + card.rank + card.suit + "]";
+                        font-size: 20px;
+                        color: card.visible ? (card.color == "red" ? #dd0000 : #000000) : #2a2a3a;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 150px;
+            background: #252540;
+            border-radius: 10px;
+
+            VerticalBox {
+                padding: 10px;
+                alignment: center;
+
+                HorizontalBox {
+                    spacing: 15px;
+                    alignment: start;
+
+                    Text {
+                        text: "You (Player)";
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #4ecdc4;
+                    }
+
+                    if root.current_player_name == "You" && !root.animation_active: Text {
+                        text: "YOUR TURN";
+                        font-size: 16px;
+                        color: #00ff00;
+                        font-weight: 600;
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: center;
+
+                    for card in root.player_cards: Text {
+                        text: "[" + card.rank + card.suit + "]";
+                        font-size: 22px;
+                        color: card.visible ? (card.color == "red" ? #dd0000 : #000000) : #2a2a3a;
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: 15px;
+                    alignment: center;
+
+                    Text {
+                        text: "Chips: " + root.player_chips;
+                        font-size: 16px;
+                        color: #4ecdc4;
+                    }
+
+                    Text {
+                        text: "Bet: " + root.player_bet;
+                        font-size: 16px;
+                        color: #ffd700;
+                    }
+                }
+
+                if root.player_last_action != "": Text {
+                    text: root.player_last_action;
+                    font-size: 14px;
+                    color: #888888;
+                    font-italic: true;
+                }
+            }
+        }
+
+        if root.show_actions && !root.animation_active: Rectangle {
+            height: 70px;
+            background: #2a2a45;
+            border-radius: 10px;
+
+            HorizontalBox {
+                padding: 10px;
+                spacing: 12px;
+                alignment: center;
+
+                if root.can_check: Button {
+                    text: "Check";
+                    primary: true;
+                    clicked => { root.check(); }
+                }
+
+                if root.can_call: Button {
+                    text: "Call";
+                    primary: true;
+                    clicked => { root.call(); }
+                }
+
+                if root.can_fold: Button {
+                    text: "Fold";
+                    primary: false;
+                    clicked => { root.fold(); }
+                }
+
+                if root.can_raise: Button {
+                    text: "Raise (" + root.min_raise_amount + "+)";
+                    primary: true;
+                    clicked => { root.raise(); }
+                }
+
+                Button {
+                    text: "All-In";
+                    primary: true;
+                    clicked => { root.all_in(); }
+                }
+            }
+        }
+
+        HorizontalBox {
+            padding: 10px;
+            spacing: 20px;
+            alignment: center;
+
+            Button {
+                text: "New Hand";
+                primary: false;
+                clicked => { root.new_hand(); }
+            }
+        }
+
+        if root.show_winner: Rectangle {
+            height: 50px;
+            background: #3a3a50;
+            border-radius: 8px;
+
+            Text {
+                text: "WINNER: " + root.winner_name;
+                font-size: 28px;
+                color: #ffd700;
+                font-weight: 800;
+            }
+        }
+    }
+}
