@@ -59,12 +59,12 @@ export component MainWindow inherits Window {
                 spacing: 0;
                 
                 Rectangle {
-                    height: parent.height * 0.18;
+                    height: 130px;
                     background: transparent;
                     
                     VerticalBox {
                         alignment: center;
-                        spacing: 4px;
+                        spacing: 6px;
                         
                         Text {
                             text: "♠ ♥ ♦ ♣ TEXAS HOLD'EM ♣ ♦ ♥ ♠";
@@ -74,12 +74,12 @@ export component MainWindow inherits Window {
                         }
                         
                         Rectangle {
-                            width: parent.width * 0.7;
-                            height: parent.height * 0.12;
+                            width: 160px;
+                            height: 50px;
                             background: #1a3d1a;
                             border-radius: 8px;
                             border-width: 2px;
-                            border-color: #2d5a2d;
+                            border-color: #ffd700;
                             
                             VerticalBox {
                                 alignment: center;
@@ -122,12 +122,12 @@ export component MainWindow inherits Window {
                 }
                 
                 Rectangle {
-                    height: parent.height * 0.12;
+                    height: 85px;
                     background: transparent;
                     
                     HorizontalBox {
                         padding: 0;
-                        spacing: 4px;
+                        spacing: 8px;
                         alignment: center;
                         
                         for card[idx] in root.bot_cards: Rectangle {
@@ -178,12 +178,12 @@ export component MainWindow inherits Window {
                 }
                 
                 Rectangle {
-                    height: parent.height * 0.22;
+                    height: 160px;
                     background: transparent;
                     
                     VerticalBox {
                         alignment: center;
-                        spacing: 4px;
+                        spacing: 6px;
                         
                         Text {
                             text: "COMMUNITY";
@@ -194,11 +194,11 @@ export component MainWindow inherits Window {
                         
                         HorizontalBox {
                             padding: 0;
-                            spacing: 6px;
+                            spacing: 8px;
                             alignment: center;
                             for card in root.community_cards: Rectangle {
-                                width: 38px;
-                                height: 52px;
+                                width: 40px;
+                                height: 55px;
                                 background: card.visible ? #ffffff : #1a2a5a;
                                 border-radius: 4px;
                                 border-width: 1px;
@@ -232,10 +232,10 @@ export component MainWindow inherits Window {
                                     border-radius: 2px;
                                     Rectangle {
                                         background: #ffffff;
-                                        width: 22px;
-                                        height: 32px;
+                                        width: 24px;
+                                        height: 34px;
                                         x: 7px;
-                                        y: 9px;
+                                        y: 10px;
                                         border-radius: 2px;
                                     }
                                 }
@@ -244,7 +244,7 @@ export component MainWindow inherits Window {
                         
                         Text {
                             text: root.phase_name;
-                            font-size: 14px;
+                            font-size: 16px;
                             font-weight: 700;
                             color: #ffffff;
                         }
@@ -254,6 +254,7 @@ export component MainWindow inherits Window {
                             border-radius: 4px;
                             border-width: 1px;
                             border-color: #00ff88;
+                            width: 120px;
                             height: 24px;
                             HorizontalBox {
                                 padding: 0;
@@ -270,12 +271,12 @@ export component MainWindow inherits Window {
                 }
                 
                 Rectangle {
-                    height: parent.height * 0.12;
+                    height: 85px;
                     background: transparent;
                     
                     HorizontalBox {
                         padding: 0;
-                        spacing: 4px;
+                        spacing: 8px;
                         alignment: center;
                         
                         for card[idx] in root.player_cards: Rectangle {
@@ -314,36 +315,36 @@ export component MainWindow inherits Window {
                 }
                 
                 Rectangle {
-                    height: parent.height * 0.18;
+                    height: 130px;
                     background: transparent;
                     
                     VerticalBox {
                         alignment: center;
-                        spacing: 4px;
+                        spacing: 8px;
                         
                         HorizontalBox {
                             spacing: 20px;
                             alignment: center;
                             if root.current_player_name == "You" && !root.animation_active: Rectangle {
-                                width: 10px;
-                                height: 10px;
+                                width: 12px;
+                                height: 12px;
                                 background: #00ff00;
-                                border-radius: 5px;
+                                border-radius: 6px;
                             }
                             Text {
                                 text: "YOU";
-                                font-size: 14px;
+                                font-size: 16px;
                                 font-weight: 700;
                                 color: #4ecdc4;
                             }
                             Text {
                                 text: "$" + root.player_chips;
-                                font-size: 12px;
+                                font-size: 13px;
                                 color: #8ecdc4;
                             }
                             Text {
                                 text: "Bet: $" + root.player_bet;
-                                font-size: 11px;
+                                font-size: 12px;
                                 color: #ffd700;
                             }
                         }
@@ -353,8 +354,8 @@ export component MainWindow inherits Window {
                             border-radius: 8px;
                             border-width: 2px;
                             border-color: #ffd700;
-                            width: parent.width * 0.85;
-                            height: 40px;
+                            width: 280px;
+                            height: 45px;
                             
                             VerticalBox {
                                 alignment: center;
@@ -370,62 +371,62 @@ export component MainWindow inherits Window {
                 }
                 
                 Rectangle {
-                    height: parent.height * 0.18;
+                    height: 130px;
                     background: #1a2a3a;
                     border-width: 2px;
                     border-color: #2a3a4a;
                     
                     VerticalBox {
-                        padding: 6px;
-                        spacing: 6px;
+                        padding: 8px;
+                        spacing: 8px;
                         alignment: center;
                         
                         HorizontalBox {
                             padding: 0;
-                            spacing: 6px;
+                            spacing: 8px;
                             alignment: center;
                             
                             if root.show_actions && !root.animation_active: HorizontalBox {
-                                spacing: 6px;
+                                spacing: 8px;
                                 alignment: center;
                                 
                                 if root.can_check: Button {
                                     text: "✓";
                                     primary: true;
-                                    height: 40px;
-                                    width: 50px;
+                                    height: 42px;
+                                    width: 52px;
                                     clicked => { root.check(); }
                                 }
                                 
                                 if root.can_call: Button {
                                     text: "📞";
                                     primary: true;
-                                    height: 40px;
-                                    width: 50px;
+                                    height: 42px;
+                                    width: 52px;
                                     clicked => { root.call(); }
                                 }
                                 
                                 if root.can_fold: Button {
                                     text: "✕";
                                     primary: false;
-                                    height: 40px;
-                                    width: 50px;
+                                    height: 42px;
+                                    width: 52px;
                                     clicked => { root.fold(); }
                                 }
                                 
                                 if root.can_raise: Button {
                                     text: "↗";
                                     primary: true;
-                                    height: 40px;
-                                    width: 50px;
+                                    height: 42px;
+                                    width: 52px;
                                     clicked => { root.raise(); }
                                 }
                                 
                                 Button {
                                     text: "⭐";
                                     primary: true;
-                                    height: 40px;
-                                    width: 50px;
+                                    height: 42px;
+                                    width: 52px;
                                     clicked => { root.all_in(); }
                                 }
                             }
@@ -433,8 +434,8 @@ export component MainWindow inherits Window {
                             Button {
                                 text: "🃏 New";
                                 primary: false;
-                                height: 40px;
-                                width: 65px;
+                                height: 42px;
+                                width: 70px;
                                 clicked => { root.new_hand(); }
                             }
                         }
