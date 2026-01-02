@@ -9,8 +9,8 @@ export struct CardUI {
 
 export component MainWindow inherits Window {
     title: "Poker";
-    width: 1200px;
-    height: 800px;
+    min-width: 320px;
+    min-height: 480px;
     background: #0a3d0a;
 
     in property <int> pot;
@@ -45,473 +45,139 @@ export component MainWindow inherits Window {
     callback all_in();
     callback new_hand();
 
-    HorizontalBox {
+    VerticalBox {
         padding: 0;
         spacing: 0;
         
-        VerticalBox {
-            padding: 0;
-            spacing: 0;
-            width: 1200px;
-            height: 720px;
+        Rectangle {
+            background: #1a5c1a;
+            border-radius: 50px;
+            border-width: 4px;
+            border-color: #4a2810;
             
-            Rectangle {
-                background: #1a5c1a;
-                border-radius: 200px;
-                border-width: 15px;
-                border-color: #4a2810;
+            VerticalBox {
+                padding: 8px;
+                spacing: 4px;
                 
                 Rectangle {
-                    background: #0d4d0d;
-                    border-radius: 180px;
-                    width: 1170px;
-                    height: 690px;
-                    x: 15px;
-                    y: 15px;
+                    height: 40px;
+                    background: transparent;
                     
-                    VerticalBox {
+                    HorizontalBox {
                         padding: 0;
-                        spacing: 0;
-                        width: 1170px;
-                        height: 690px;
+                        alignment: center;
                         
                         Rectangle {
+                            background: #1a3d1a;
+                            border-radius: 6px;
+                            border-width: 2px;
+                            border-color: #3d6a3d;
+                            width: parent.width * 0.85;
+                            height: 36px;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                Text {
+                                    text: "♠ ♥ ♦ ♣ TEXAS HOLD'EM ♣ ♦ ♥ ♠";
+                                    font-size: 12px;
+                                    font-weight: 800;
+                                    color: #ffd700;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    height: 80px;
+                    background: transparent;
+                    
+                    HorizontalBox {
+                        padding: 4px;
+                        spacing: 8px;
+                        alignment: center;
+                        
+                        Rectangle {
+                            width: parent.width * 0.25;
+                            height: 70px;
+                            background: #1a3d1a;
+                            border-radius: 6px;
+                            border-width: 2px;
+                            border-color: #2d5a2d;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "BOT (AI)";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: #ff6b6b;
+                                }
+                                Text {
+                                    text: "$" + root.bot_chips;
+                                    font-size: 10px;
+                                    color: #8ecdc4;
+                                }
+                                Text {
+                                    text: "Bet: $" + root.bot_bet;
+                                    font-size: 9px;
+                                    color: #ffd700;
+                                }
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width * 0.35;
                             height: 70px;
                             background: transparent;
                             
-                            HorizontalBox {
-                                padding: 0;
-                                spacing: 0;
+                            VerticalBox {
+                                padding: 4px;
+                                spacing: 4px;
                                 alignment: center;
                                 
                                 Rectangle {
-                                    width: 400px;
-                                    height: 70px;
                                     background: #1a3d1a;
-                                    border-radius: 8px;
+                                    border-radius: 6px;
                                     border-width: 2px;
-                                    border-color: #3d6a3d;
+                                    border-color: #ffd700;
+                                    width: parent.width * 0.4;
+                                    height: 40px;
                                     
                                     VerticalBox {
                                         alignment: center;
                                         Text {
-                                            text: "♠ ♥ ♦ ♣ TEXAS HOLD'EM ♣ ♦ ♥ ♠";
-                                            font-size: 24px;
-                                            font-weight: 800;
+                                            text: "POT";
+                                            font-size: 9px;
                                             color: #ffd700;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Rectangle {
-                            height: 120px;
-                            background: transparent;
-                            
-                            HorizontalBox {
-                                padding: 0;
-                                spacing: 0;
-                                alignment: center;
-                                
-                                Rectangle {
-                                    width: 180px;
-                                    height: 90px;
-                                    background: #1a3d1a;
-                                    border-radius: 8px;
-                                    border-width: 2px;
-                                    border-color: #2d5a2d;
-                                    
-                                    VerticalBox {
-                                        alignment: center;
-                                        spacing: 2px;
-                                        Text {
-                                            text: "BOT (AI)";
-                                            font-size: 16px;
-                                            font-weight: 700;
-                                            color: #ff6b6b;
-                                        }
-                                        Text {
-                                            text: "$" + root.bot_chips;
-                                            font-size: 14px;
-                                            color: #8ecdc4;
-                                        }
-                                        Text {
-                                            text: "Bet: $" + root.bot_bet;
-                                            font-size: 12px;
-                                            color: #ffd700;
-                                        }
-                                    }
-                                }
-                                
-                                Rectangle {
-                                    width: 580px;
-                                    height: 120px;
-                                    background: transparent;
-                                    
-                                    VerticalBox {
-                                        padding: 0;
-                                        spacing: 0;
-                                        alignment: center;
-                                        
-                                        Rectangle {
-                                            width: 160px;
-                                            height: 80px;
-                                            background: #1a3d1a;
-                                            border-radius: 10px;
-                                            border-width: 2px;
-                                            border-color: #ffd700;
-                                            
-                                            VerticalBox {
-                                                alignment: center;
-                                                Text {
-                                                    text: "POT";
-                                                    font-size: 14px;
-                                                    color: #ffd700;
-                                                    font-weight: 600;
-                                                }
-                                                Text {
-                                                    text: "$" + root.pot;
-                                                    font-size: 26px;
-                                                    color: #ffffff;
-                                                    font-weight: 800;
-                                                }
-                                            }
-                                        }
-                                        
-                                        if root.animation_active: Rectangle {
-                                            width: 160px;
-                                            height: 30px;
-                                            background: #1a3d1a;
-                                            border-radius: 6px;
-                                            border-width: 2px;
-                                            border-color: #00ff88;
-                                            
-                                            HorizontalBox {
-                                                padding: 0;
-                                                alignment: center;
-                                                Text {
-                                                    text: "◉ Thinking...";
-                                                    font-size: 14px;
-                                                    color: #00ff88;
-                                                    font-weight: 600;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                Rectangle {
-                                    width: 180px;
-                                    height: 90px;
-                                    background: #1a3d1a;
-                                    border-radius: 8px;
-                                    border-width: 2px;
-                                    border-color: #2d5a2d;
-                                    
-                                    VerticalBox {
-                                        alignment: center;
-                                        spacing: 2px;
-                                        HorizontalBox {
-                                            padding: 0;
-                                            spacing: 5px;
-                                            alignment: center;
-                                            if root.current_player_name == "You" && !root.animation_active: Rectangle {
-                                                width: 10px;
-                                                height: 10px;
-                                                background: #00ff00;
-                                                border-radius: 5px;
-                                            }
-                                            Text {
-                                                text: "YOU";
-                                                font-size: 16px;
-                                                font-weight: 700;
-                                                color: #4ecdc4;
-                                            }
-                                        }
-                                        Text {
-                                            text: "$" + root.player_chips;
-                                            font-size: 14px;
-                                            color: #8ecdc4;
-                                        }
-                                        Text {
-                                            text: "Bet: $" + root.player_bet;
-                                            font-size: 12px;
-                                            color: #ffd700;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Rectangle {
-                            height: 120px;
-                            background: transparent;
-                            
-                            HorizontalBox {
-                                padding: 0;
-                                spacing: 0;
-                                alignment: center;
-                                
-                                Rectangle {
-                                    width: 150px;
-                                    height: 30px;
-                                    background: #2a4a2a;
-                                    border-radius: 4px;
-                                    
-                                    HorizontalBox {
-                                        padding: 0;
-                                        alignment: center;
-                                        Text {
-                                            text: "Bot's Cards";
-                                            font-size: 11px;
-                                            color: #888888;
-                                        }
-                                    }
-                                }
-                                
-                                Rectangle {
-                                    width: 300px;
-                                    height: 120px;
-                                    background: transparent;
-                                    
-                                    VerticalBox {
-                                        padding: 0;
-                                        spacing: 0;
-                                        alignment: center;
-                                        
-                                        Rectangle {
-                                            height: 80px;
-                                            background: transparent;
-                                            
-                                            HorizontalBox {
-                                                padding: 0;
-                                                spacing: 0;
-                                                alignment: center;
-                                                
-                                                for card[idx] in root.bot_cards: Rectangle {
-                                                    width: 50px;
-                                                    height: 70px;
-                                                    background: card.visible ? #ffffff : #2a4a8a;
-                                                    border-radius: 5px;
-                                                    border-width: 2px;
-                                                    border-color: card.visible ? #888888 : #1a2a5a;
-                                                    
-                                                    if card.visible: VerticalBox {
-                                                        padding: 3px;
-                                                        spacing: 0;
-                                                        alignment: space-between;
-                                                        Text {
-                                                            text: card.rank;
-                                                            font-size: 11px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                            font-weight: 700;
-                                                        }
-                                                        Text {
-                                                            text: card.suit;
-                                                            font-size: 18px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                        }
-                                                        Text {
-                                                            text: card.rank;
-                                                            font-size: 11px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                            font-weight: 700;
-                                                            horizontal-alignment: right;
-                                                        }
-                                                    }
-                                                    if !card.visible: Rectangle {
-                                                        background: #2a4a8a;
-                                                        border-radius: 3px;
-                                                        Rectangle {
-                                                            background: #ffffff;
-                                                            width: 35px;
-                                                            height: 50px;
-                                                            x: 7px;
-                                                            y: 10px;
-                                                            border-radius: 2px;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                Rectangle {
-                                    width: 150px;
-                                    height: 30px;
-                                    background: #2a4a2a;
-                                    border-radius: 4px;
-                                    
-                                    HorizontalBox {
-                                        padding: 0;
-                                        alignment: center;
-                                        Text {
-                                            text: "Your Cards";
-                                            font-size: 11px;
-                                            color: #888888;
-                                        }
-                                    }
-                                }
-                                
-                                Rectangle {
-                                    width: 300px;
-                                    height: 120px;
-                                    background: transparent;
-                                    
-                                    VerticalBox {
-                                        padding: 0;
-                                        spacing: 0;
-                                        alignment: center;
-                                        
-                                        Rectangle {
-                                            height: 80px;
-                                            background: transparent;
-                                            
-                                            HorizontalBox {
-                                                padding: 0;
-                                                spacing: 0;
-                                                alignment: center;
-                                                
-                                                for card[idx] in root.player_cards: Rectangle {
-                                                    width: 50px;
-                                                    height: 70px;
-                                                    background: #ffffff;
-                                                    border-radius: 5px;
-                                                    border-width: 2px;
-                                                    border-color: #cccccc;
-                                                    
-                                                    VerticalBox {
-                                                        padding: 3px;
-                                                        spacing: 0;
-                                                        alignment: space-between;
-                                                        Text {
-                                                            text: card.rank;
-                                                            font-size: 11px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                            font-weight: 700;
-                                                        }
-                                                        Text {
-                                                            text: card.suit;
-                                                            font-size: 18px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                        }
-                                                        Text {
-                                                            text: card.rank;
-                                                            font-size: 11px;
-                                                            color: card.card_color == "red" ? #cc0000 : #000000;
-                                                            font-weight: 700;
-                                                            horizontal-alignment: right;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Rectangle {
-                            height: 150px;
-                            background: transparent;
-                            
-                            HorizontalBox {
-                                padding: 0;
-                                spacing: 0;
-                                alignment: center;
-                                
-                                Rectangle {
-                                    width: 280px;
-                                    height: 110px;
-                                    background: #1a3d1a;
-                                    border-radius: 8px;
-                                    border-width: 2px;
-                                    border-color: #2d5a2d;
-                                    
-                                    VerticalBox {
-                                        alignment: center;
-                                        spacing: 4px;
-                                        Text {
-                                            text: "COMMUNITY CARDS";
-                                            font-size: 14px;
-                                            color: #4a8a5a;
                                             font-weight: 600;
                                         }
-                                        
-                                        HorizontalBox {
-                                            padding: 4px;
-                                            spacing: 6px;
-                                            alignment: center;
-                                            for card in root.community_cards: Rectangle {
-                                                width: 55px;
-                                                height: 75px;
-                                                background: card.visible ? #ffffff : #1a2a5a;
-                                                border-radius: 5px;
-                                                border-width: 2px;
-                                                border-color: card.visible ? #888888 : #0a1a3a;
-                                                
-                                                if card.visible: VerticalBox {
-                                                    padding: 3px;
-                                                    spacing: 0;
-                                                    alignment: space-between;
-                                                    Text {
-                                                        text: card.rank;
-                                                        font-size: 12px;
-                                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                                        font-weight: 700;
-                                                    }
-                                                    Text {
-                                                        text: card.suit;
-                                                        font-size: 22px;
-                                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                                    }
-                                                    Text {
-                                                        text: card.rank;
-                                                        font-size: 12px;
-                                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                                        font-weight: 700;
-                                                        horizontal-alignment: right;
-                                                    }
-                                                }
-                                                if !card.visible: Rectangle {
-                                                    background: #2a4a8a;
-                                                    border-radius: 3px;
-                                                    Rectangle {
-                                                        background: #ffffff;
-                                                        width: 40px;
-                                                        height: 55px;
-                                                        x: 7px;
-                                                        y: 10px;
-                                                        border-radius: 2px;
-                                                    }
-                                                }
-                                            }
+                                        Text {
+                                            text: "$" + root.pot;
+                                            font-size: 13px;
+                                            color: #ffffff;
+                                            font-weight: 800;
                                         }
                                     }
                                 }
                                 
-                                Rectangle {
-                                    width: 280px;
-                                    height: 110px;
+                                if root.animation_active: Rectangle {
                                     background: #1a3d1a;
-                                    border-radius: 8px;
-                                    border-width: 2px;
-                                    border-color: #2d5a2d;
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: #00ff88;
+                                    width: parent.width * 0.35;
+                                    height: 22px;
                                     
-                                    VerticalBox {
+                                    HorizontalBox {
+                                        padding: 0;
                                         alignment: center;
                                         Text {
-                                            text: root.phase_name;
-                                            font-size: 20px;
-                                            font-weight: 700;
-                                            color: #ffffff;
-                                        }
-                                        Text {
-                                            text: "Stage";
-                                            font-size: 12px;
-                                            color: #888888;
+                                            text: "◉ Thinking...";
+                                            font-size: 10px;
+                                            color: #00ff88;
+                                            font-weight: 600;
                                         }
                                     }
                                 }
@@ -519,31 +185,344 @@ export component MainWindow inherits Window {
                         }
                         
                         Rectangle {
-                            height: 130px;
-                            background: transparent;
+                            width: parent.width * 0.25;
+                            height: 70px;
+                            background: #1a3d1a;
+                            border-radius: 6px;
+                            border-width: 2px;
+                            border-color: #2d5a2d;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                spacing: 2px;
+                                HorizontalBox {
+                                    padding: 0;
+                                    spacing: 4px;
+                                    alignment: center;
+                                    if root.current_player_name == "You" && !root.animation_active: Rectangle {
+                                        width: 8px;
+                                        height: 8px;
+                                        background: #00ff00;
+                                        border-radius: 4px;
+                                    }
+                                    Text {
+                                        text: "YOU";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: #4ecdc4;
+                                    }
+                                }
+                                Text {
+                                    text: "$" + root.player_chips;
+                                    font-size: 10px;
+                                    color: #8ecdc4;
+                                }
+                                Text {
+                                    text: "Bet: $" + root.player_bet;
+                                    font-size: 9px;
+                                    color: #ffd700;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    height: 70px;
+                    background: transparent;
+                    
+                    HorizontalBox {
+                        padding: 4px;
+                        spacing: 6px;
+                        alignment: center;
+                        
+                        Rectangle {
+                            width: parent.width * 0.18;
+                            height: 22px;
+                            background: #2a4a2a;
+                            border-radius: 4px;
                             
                             HorizontalBox {
+                                padding: 0;
+                                alignment: center;
+                                Text {
+                                    text: "Bot";
+                                    font-size: 9px;
+                                    color: #888888;
+                                }
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width * 0.38;
+                            height: 60px;
+                            background: transparent;
+                            
+                            VerticalBox {
                                 padding: 0;
                                 spacing: 0;
                                 alignment: center;
                                 
-                                if root.show_winner: Rectangle {
-                                    width: 500px;
-                                    height: 80px;
-                                    background: rgba(0, 0, 0, 0.85);
-                                    border-radius: 12px;
-                                    border-width: 3px;
-                                    border-color: #ffd700;
+                                Rectangle {
+                                    height: 50px;
                                     
-                                    VerticalBox {
+                                    HorizontalBox {
+                                        padding: 0;
+                                        spacing: 6px;
                                         alignment: center;
-                                        Text {
-                                            text: "🏆 " + root.winner_name + " WINS $" + root.pot + "! 🏆";
-                                            font-size: 26px;
-                                            color: #ffd700;
-                                            font-weight: 800;
+                                        
+                                        for card[idx] in root.bot_cards: Rectangle {
+                                            width: 40px;
+                                            height: 54px;
+                                            background: card.visible ? #ffffff : #2a4a8a;
+                                            border-radius: 4px;
+                                            border-width: 1px;
+                                            border-color: card.visible ? #888888 : #1a2a5a;
+                                            
+                                            if card.visible: VerticalBox {
+                                                padding: 2px;
+                                                spacing: 0;
+                                                alignment: space-between;
+                                                Text {
+                                                    text: card.rank;
+                                                    font-size: 9px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                    font-weight: 700;
+                                                }
+                                                Text {
+                                                    text: card.suit;
+                                                    font-size: 13px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                }
+                                                Text {
+                                                    text: card.rank;
+                                                    font-size: 9px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                    font-weight: 700;
+                                                    horizontal-alignment: right;
+                                                }
+                                            }
+                                            if !card.visible: Rectangle {
+                                                background: #2a4a8a;
+                                                border-radius: 2px;
+                                                Rectangle {
+                                                    background: #ffffff;
+                                                    width: 24px;
+                                                    height: 36px;
+                                                    x: 6px;
+                                                    y: 8px;
+                                                    border-radius: 2px;
+                                                }
+                                            }
                                         }
                                     }
+                                }
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width * 0.18;
+                            height: 22px;
+                            background: #2a4a2a;
+                            border-radius: 4px;
+                            
+                            HorizontalBox {
+                                padding: 0;
+                                alignment: center;
+                                Text {
+                                    text: "You";
+                                    font-size: 9px;
+                                    color: #888888;
+                                }
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width * 0.38;
+                            height: 60px;
+                            background: transparent;
+                            
+                            VerticalBox {
+                                padding: 0;
+                                spacing: 0;
+                                alignment: center;
+                                
+                                Rectangle {
+                                    height: 50px;
+                                    
+                                    HorizontalBox {
+                                        padding: 0;
+                                        spacing: 6px;
+                                        alignment: center;
+                                        
+                                        for card[idx] in root.player_cards: Rectangle {
+                                            width: 40px;
+                                            height: 54px;
+                                            background: #ffffff;
+                                            border-radius: 4px;
+                                            border-width: 1px;
+                                            border-color: #cccccc;
+                                            
+                                            VerticalBox {
+                                                padding: 2px;
+                                                spacing: 0;
+                                                alignment: space-between;
+                                                Text {
+                                                    text: card.rank;
+                                                    font-size: 9px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                    font-weight: 700;
+                                                }
+                                                Text {
+                                                    text: card.suit;
+                                                    font-size: 13px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                }
+                                                Text {
+                                                    text: card.rank;
+                                                    font-size: 9px;
+                                                    color: card.card_color == "red" ? #cc0000 : #000000;
+                                                    font-weight: 700;
+                                                    horizontal-alignment: right;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    height: 100px;
+                    background: transparent;
+                    
+                    HorizontalBox {
+                        padding: 4px;
+                        spacing: 8px;
+                        alignment: center;
+                        
+                        Rectangle {
+                            width: parent.width * 0.48;
+                            height: 90px;
+                            background: #1a3d1a;
+                            border-radius: 6px;
+                            border-width: 2px;
+                            border-color: #2d5a2d;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: "COMMUNITY";
+                                    font-size: 10px;
+                                    color: #4a8a5a;
+                                    font-weight: 600;
+                                }
+                                
+                                HorizontalBox {
+                                    padding: 2px;
+                                    spacing: 4px;
+                                    alignment: center;
+                                    for card in root.community_cards: Rectangle {
+                                        width: 30px;
+                                        height: 44px;
+                                        background: card.visible ? #ffffff : #1a2a5a;
+                                        border-radius: 3px;
+                                        border-width: 1px;
+                                        border-color: card.visible ? #888888 : #0a1a3a;
+                                        
+                                        if card.visible: VerticalBox {
+                                            padding: 2px;
+                                            spacing: 0;
+                                            alignment: space-between;
+                                            Text {
+                                                text: card.rank;
+                                                font-size: 7px;
+                                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                                font-weight: 700;
+                                            }
+                                            Text {
+                                                text: card.suit;
+                                                font-size: 11px;
+                                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                            }
+                                            Text {
+                                                text: card.rank;
+                                                font-size: 7px;
+                                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                                font-weight: 700;
+                                                horizontal-alignment: right;
+                                            }
+                                        }
+                                        if !card.visible: Rectangle {
+                                            background: #2a4a8a;
+                                            border-radius: 2px;
+                                            Rectangle {
+                                                background: #ffffff;
+                                                width: 18px;
+                                                height: 28px;
+                                                x: 5px;
+                                                y: 7px;
+                                                border-radius: 1px;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Rectangle {
+                            width: parent.width * 0.28;
+                            height: 90px;
+                            background: #1a3d1a;
+                            border-radius: 6px;
+                            border-width: 2px;
+                            border-color: #2d5a2d;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                Text {
+                                    text: root.phase_name;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    color: #ffffff;
+                                }
+                                Text {
+                                    text: "Stage";
+                                    font-size: 9px;
+                                    color: #888888;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    height: 60px;
+                    background: transparent;
+                    
+                    HorizontalBox {
+                        padding: 0;
+                        spacing: 0;
+                        alignment: center;
+                        
+                        if root.show_winner: Rectangle {
+                            background: rgba(0, 0, 0, 0.85);
+                            border-radius: 8px;
+                            border-width: 2px;
+                            border-color: #ffd700;
+                            width: parent.width * 0.8;
+                            height: 45px;
+                            
+                            VerticalBox {
+                                alignment: center;
+                                Text {
+                                    text: "🏆 " + root.winner_name + " WINS $" + root.pot + "!";
+                                    font-size: 12px;
+                                    color: #ffd700;
+                                    font-weight: 700;
                                 }
                             }
                         }
@@ -553,60 +532,71 @@ export component MainWindow inherits Window {
         }
         
         Rectangle {
-            width: 1200px;
             height: 80px;
             background: #1a2a3a;
             border-width: 2px;
             border-color: #2a3a4a;
             
             VerticalBox {
-                padding: 8px;
-                spacing: 0;
+                padding: 6px;
+                spacing: 6px;
                 alignment: center;
                 
                 HorizontalBox {
                     padding: 0;
-                    spacing: 12px;
+                    spacing: 6px;
                     alignment: center;
                     
                     if root.show_actions && !root.animation_active: HorizontalBox {
-                        spacing: 12px;
+                        spacing: 6px;
                         alignment: center;
                         
                         if root.can_check: Button {
-                            text: "✓ Check";
+                            text: "✓";
                             primary: true;
+                            height: 38px;
+                            width: 48px;
                             clicked => { root.check(); }
                         }
                         
                         if root.can_call: Button {
-                            text: "📞 Call";
+                            text: "📞";
                             primary: true;
+                            height: 38px;
+                            width: 48px;
                             clicked => { root.call(); }
                         }
                         
                         if root.can_fold: Button {
-                            text: "✕ Fold";
+                            text: "✕";
                             primary: false;
+                            height: 38px;
+                            width: 48px;
                             clicked => { root.fold(); }
                         }
                         
                         if root.can_raise: Button {
-                            text: "↗ Raise";
+                            text: "↗";
                             primary: true;
+                            height: 38px;
+                            width: 48px;
                             clicked => { root.raise(); }
                         }
                         
                         Button {
-                            text: "⭐ All-In";
+                            text: "⭐";
                             primary: true;
+                            height: 38px;
+                            width: 48px;
                             clicked => { root.all_in(); }
                         }
                     }
                     
                     Button {
-                        text: "🃏 New Hand";
+                        text: "🃏 New";
                         primary: false;
+                        height: 38px;
+                        width: 65px;
                         clicked => { root.new_hand(); }
                     }
                 }
