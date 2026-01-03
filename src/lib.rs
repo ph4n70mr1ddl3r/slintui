@@ -1,7 +1,7 @@
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use slint::{ComponentHandle, VecModel};
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
 slint::include_modules!();
 
@@ -380,13 +380,13 @@ fn create_card_ui_data(card: &Card) -> CardUI {
 }
 
 struct AppState {
-    game: Arc<Mutex<PokerGame>>,
+    game: Rc<RefCell<PokerGame>>,
     main_window: slint::Weak<MainWindow>,
 }
 
 impl AppState {
     fn new(window: slint::Weak<MainWindow>) -> Self {
-        let game = Arc::new(Mutex::new(PokerGame::new()));
+        let game = Rc::new(RefCell::new(PokerGame::new()));
         let state = Self {
             game,
             main_window: window,
@@ -395,7 +395,7 @@ impl AppState {
     }
 
     fn update_ui(&self) {
-        let game = self.game.lock().unwrap();
+        let game = self.game.borrow();
         let window = self.main_window.upgrade().unwrap();
 
         window.set_pot(game.pot);
@@ -468,26 +468,38 @@ impl Clone for AppState {
 }
 
 fn main() {
+    println!("Starting poker app...");
     let main_window = MainWindow::new().unwrap();
+    println!("MainWindow created");
     let weak_window = main_window.as_weak();
 
-    let state = Arc::new(AppState::new(weak_window.clone()));
+    let state = Rc::new(AppState::new(weak_window.clone()));
 
     {
-        let mut game = state.game.lock().unwrap();
+        let mut game = state.game.borrow_mut();
         game.start_hand();
     }
+    println!("Initial hand dealt");
     state.update_ui();
 
-    let state = state.clone();
-    main_window.on_new_hand(move || {
-        println!("NEW HAND CLICKED!");
-        {
-            let mut game = state.game.lock().unwrap();
-            game.simulate_hand();
-        }
-        state.update_ui();
+    let state_check = state.clone();
+    main_window.on_check(move || {
+        println!("CHECK CLICKED!");
+        let mut game = state_check.game.borrow_mut();
+        game.player_action("check", None);
+        drop(game);
+        state_check.update_ui();
     });
 
+    let state_new = state.clone();
+    main_window.on_new_hand(move || {
+        println!("NEW HAND CLICKED!");
+        let mut game = state_new.game.borrow_mut();
+        game.simulate_hand();
+        drop(game);
+        state_new.update_ui();
+    });
+
+    println!("Callbacks set up, entering event loop...");
     main_window.run().unwrap();
 }

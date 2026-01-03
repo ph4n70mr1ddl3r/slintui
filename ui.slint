@@ -53,7 +53,23 @@ export component MainWindow inherits Window {
             spacing: 0;
 
             Rectangle {
-                height: 100px;
+                height: 60px;
+                background: #0a331a;
+
+                HorizontalBox {
+                    alignment: center;
+
+                    Button {
+                        text: "🃏 NEW HAND";
+                        primary: true;
+                        height: 44px;
+                        width: 130px;
+                        clicked => { root.new_hand(); }
+                    }
+                }
+            }
+
+            Rectangle {
                 background: @linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
 
                 VerticalBox {
