@@ -2,8 +2,6 @@ use rand::{seq::SliceRandom, thread_rng, Rng};
 use slint::{ComponentHandle, VecModel};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 slint::include_modules!();
 
@@ -478,18 +476,11 @@ impl AppState {
     }
 
     fn simulate_one_hand(&self) {
-        let state = self.clone();
-
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(300));
-
-            {
-                let mut game = state.game.lock().unwrap();
-                game.simulate_hand();
-            }
-
-            state.update_ui();
-        });
+        {
+            let mut game = self.game.lock().unwrap();
+            game.simulate_hand();
+        }
+        self.update_ui();
     }
 }
 
