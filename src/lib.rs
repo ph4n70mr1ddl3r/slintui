@@ -1,7 +1,9 @@
 use rand::{seq::SliceRandom, thread_rng, Rng};
-use slint::{ComponentHandle, Timer, TimerMode, VecModel};
-use std::cell::RefCell;
+use slint::{ComponentHandle, VecModel};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 slint::include_modules!();
 
@@ -182,9 +184,7 @@ impl PokerGame {
             GamePhase::River => {
                 self.phase = GamePhase::Showdown;
             }
-            GamePhase::Showdown => {
-                self.start_hand();
-            }
+            GamePhase::Showdown => {}
         }
     }
 
@@ -273,18 +273,16 @@ impl PokerGame {
         false
     }
 
-    fn simulate_user_action(&mut self) -> bool {
-        if !self.players[self.current_player].is_user {
-            return false;
-        }
-
+    fn simulate_action(&mut self) {
         let player_chips = self.players[self.current_player].chips;
         let call_amount = self.current_bet - self.players[self.current_player].bet;
         let to_call = call_amount.max(0);
 
+        let mut rng = thread_rng();
+
         let actions = match self.phase {
             GamePhase::PreFlop if to_call == 0 => vec!["check", "bet", "raise", "fold"],
-            GamePhase::PreFlop => vec!["call", "raise", "fold", "check"],
+            GamePhase::PreFlop => vec!["call", "raise", "fold"],
             GamePhase::Flop if to_call == 0 => vec!["check", "bet", "fold"],
             GamePhase::Flop => vec!["call", "raise", "fold"],
             GamePhase::Turn if to_call == 0 => vec!["check", "bet", "fold"],
@@ -295,55 +293,13 @@ impl PokerGame {
         };
 
         if actions.is_empty() {
-            return false;
+            return;
         }
 
-        let mut rng = thread_rng();
         let action = actions.choose(&mut rng).unwrap();
         let bet_amount = rng.gen_range(50..=player_chips.min(200));
 
-        self.player_action(action, Some(bet_amount))
-    }
-
-    fn simulate_bot_action(&mut self) -> bool {
-        if self.players[self.current_player].is_user {
-            return false;
-        }
-
-        let player_chips = self.players[self.current_player].chips;
-        let call_amount = self.current_bet - self.players[self.current_player].bet;
-        let to_call = call_amount.max(0);
-
-        let mut rng = thread_rng();
-        let bot_aggressive = rng.gen::<f64>() < 0.4;
-        let bot_bluff = rng.gen::<f64>() < 0.15;
-
-        if bot_bluff && to_call > 0 && player_chips >= to_call {
-            return self.player_action("raise", Some(rng.gen_range(50..=player_chips.min(150))));
-        }
-
-        if to_call == 0 {
-            if bot_aggressive {
-                let bet = rng.gen_range(20..=player_chips.min(100));
-                return self.player_action("bet", Some(bet));
-            } else {
-                return self.player_action("check", None);
-            }
-        }
-
-        if player_chips <= to_call {
-            return self.player_action("call", None);
-        }
-
-        if bot_aggressive && player_chips > to_call + 50 {
-            return self.player_action("raise", Some(rng.gen_range(30..=player_chips.min(120))));
-        }
-
-        if to_call > player_chips / 3 {
-            return self.player_action("fold", None);
-        }
-
-        self.player_action("call", None)
+        self.player_action(action, Some(bet_amount));
     }
 
     fn get_winner(&self) -> usize {
@@ -386,6 +342,30 @@ impl PokerGame {
         }
         total
     }
+
+    fn simulate_hand(&mut self) {
+        self.start_hand();
+
+        while self.phase != GamePhase::Showdown {
+            let active_players: Vec<usize> = self
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| !p.cards.is_empty())
+                .map(|(i, _)| i)
+                .collect();
+
+            if active_players.len() <= 1 {
+                break;
+            }
+
+            self.simulate_action();
+        }
+
+        if self.phase == GamePhase::Showdown {
+            self.award_pot();
+        }
+    }
 }
 
 fn create_card_ui_data(card: &Card) -> CardUI {
@@ -402,13 +382,13 @@ fn create_card_ui_data(card: &Card) -> CardUI {
 }
 
 struct AppState {
-    game: Rc<RefCell<PokerGame>>,
+    game: Arc<Mutex<PokerGame>>,
     main_window: slint::Weak<MainWindow>,
 }
 
 impl AppState {
     fn new(window: slint::Weak<MainWindow>) -> Self {
-        let game = Rc::new(RefCell::new(PokerGame::new()));
+        let game = Arc::new(Mutex::new(PokerGame::new()));
         let state = Self {
             game,
             main_window: window,
@@ -417,7 +397,7 @@ impl AppState {
     }
 
     fn update_ui(&self) {
-        let game = self.game.borrow();
+        let game = self.game.lock().unwrap();
         let window = self.main_window.upgrade().unwrap();
 
         window.set_pot(game.pot);
@@ -480,7 +460,7 @@ impl AppState {
     }
 
     fn handle_action(&self, action: &str) {
-        let mut game = self.game.borrow_mut();
+        let mut game = self.game.lock().unwrap();
         if !game.players[game.current_player].is_user {
             return;
         }
@@ -495,6 +475,21 @@ impl AppState {
             drop(game);
             self.update_ui();
         }
+    }
+
+    fn simulate_one_hand(&self) {
+        let state = self.clone();
+
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+
+            {
+                let mut game = state.game.lock().unwrap();
+                game.simulate_hand();
+            }
+
+            state.update_ui();
+        });
     }
 }
 
@@ -511,11 +506,12 @@ fn main() {
     let main_window = MainWindow::new().unwrap();
 
     let weak_window = main_window.as_weak();
-    let state = Rc::new(AppState::new(weak_window.clone()));
+    let state = Arc::new(AppState::new(weak_window.clone()));
 
-    let mut game = state.game.borrow_mut();
-    game.start_hand();
-    drop(game);
+    {
+        let mut game = state.game.lock().unwrap();
+        game.start_hand();
+    }
     state.update_ui();
 
     let state_clone = state.clone();
@@ -553,134 +549,12 @@ fn main() {
         state_clone.handle_action("all-in");
     });
 
-    let window_weak = weak_window.clone();
-    let game_rc = state.game.clone();
+    let state_clone = state.clone();
+    let window = weak_window.upgrade().unwrap();
 
-    let timer = Timer::default();
-    timer.start(
-        TimerMode::Repeated,
-        std::time::Duration::from_millis(400),
-        move || {
-            let window = match window_weak.upgrade() {
-                Some(w) => w,
-                None => return,
-            };
-
-            let mut game = game_rc.borrow_mut();
-
-            let active_players: Vec<usize> = game
-                .players
-                .iter()
-                .enumerate()
-                .filter(|(_, p)| !p.cards.is_empty())
-                .map(|(i, _)| i)
-                .collect();
-
-            if active_players.len() <= 1 || game.phase == GamePhase::Showdown {
-                let winner = game.get_winner();
-                let winner_name = game.players[winner].name.clone();
-
-                drop(game);
-
-                let game = game_rc.borrow();
-                window.set_show_winner(true);
-                window.set_winner_name(format!("{} wins {}!", winner_name, game.pot).into());
-
-                drop(game);
-                let mut game = game_rc.borrow_mut();
-                game.award_pot();
-                game.dealer_position = (game.dealer_position + 1) % game.players.len();
-                game.start_hand();
-
-                drop(game);
-                let game = game_rc.borrow();
-                window.set_pot(game.pot);
-                window.set_current_bet(game.current_bet);
-                window.set_phase_name(game.get_phase_name().into());
-                window
-                    .set_current_player_name(game.players[game.current_player].name.clone().into());
-                window.set_animation_active(true);
-
-                let player_cards: Vec<CardUI> = game.players[0]
-                    .cards
-                    .iter()
-                    .map(create_card_ui_data)
-                    .collect();
-                window.set_player_cards(Rc::new(VecModel::from(player_cards)).into());
-
-                let bot_cards: Vec<CardUI> = game.players[1]
-                    .cards
-                    .iter()
-                    .map(create_card_ui_data)
-                    .collect();
-                window.set_bot_cards(Rc::new(VecModel::from(bot_cards)).into());
-
-                let community_cards: Vec<CardUI> = game
-                    .community_cards
-                    .iter()
-                    .map(create_card_ui_data)
-                    .collect();
-                window.set_community_cards(Rc::new(VecModel::from(community_cards)).into());
-
-                window.set_player_chips(game.players[0].chips);
-                window.set_player_bet(game.players[0].bet);
-                window.set_player_last_action(game.players[0].last_action.clone().into());
-
-                window.set_bot_chips(game.players[1].chips);
-                window.set_bot_bet(game.players[1].bet);
-                window.set_bot_last_action(game.players[1].last_action.clone().into());
-
-                return;
-            }
-
-            let player_idx = game.current_player;
-            let is_user = game.players[player_idx].is_user;
-
-            if is_user {
-                game.simulate_user_action();
-            } else {
-                game.simulate_bot_action();
-            }
-
-            drop(game);
-
-            let game = game_rc.borrow();
-            window.set_pot(game.pot);
-            window.set_current_bet(game.current_bet);
-            window.set_phase_name(game.get_phase_name().into());
-            window.set_current_player_name(game.players[game.current_player].name.clone().into());
-            window.set_animation_active(true);
-
-            let player_cards: Vec<CardUI> = game.players[0]
-                .cards
-                .iter()
-                .map(create_card_ui_data)
-                .collect();
-            window.set_player_cards(Rc::new(VecModel::from(player_cards)).into());
-
-            let bot_cards: Vec<CardUI> = game.players[1]
-                .cards
-                .iter()
-                .map(create_card_ui_data)
-                .collect();
-            window.set_bot_cards(Rc::new(VecModel::from(bot_cards)).into());
-
-            let community_cards: Vec<CardUI> = game
-                .community_cards
-                .iter()
-                .map(create_card_ui_data)
-                .collect();
-            window.set_community_cards(Rc::new(VecModel::from(community_cards)).into());
-
-            window.set_player_chips(game.players[0].chips);
-            window.set_player_bet(game.players[0].bet);
-            window.set_player_last_action(game.players[0].last_action.clone().into());
-
-            window.set_bot_chips(game.players[1].chips);
-            window.set_bot_bet(game.players[1].bet);
-            window.set_bot_last_action(game.players[1].last_action.clone().into());
-        },
-    );
+    window.on_new_hand(move || {
+        state_clone.simulate_one_hand();
+    });
 
     main_window.run().unwrap();
 }
