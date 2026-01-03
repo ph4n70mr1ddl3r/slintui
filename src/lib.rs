@@ -476,11 +476,24 @@ impl AppState {
     }
 
     fn simulate_one_hand(&self) {
+        eprintln!("DEBUG: simulate_one_hand called");
         {
             let mut game = self.game.lock().unwrap();
+            eprintln!(
+                "DEBUG: Before simulate_hand - phase={}, pot={}",
+                game.get_phase_name(),
+                game.pot
+            );
             game.simulate_hand();
+            eprintln!(
+                "DEBUG: After simulate_hand - phase={}, pot={}, community_cards={}",
+                game.get_phase_name(),
+                game.pot,
+                game.community_cards.len()
+            );
         }
         self.update_ui();
+        eprintln!("DEBUG: update_ui done");
     }
 }
 
@@ -499,9 +512,16 @@ fn main() {
     let weak_window = main_window.as_weak();
     let state = Arc::new(AppState::new(weak_window.clone()));
 
+    eprintln!("DEBUG: Starting initial hand");
     {
         let mut game = state.game.lock().unwrap();
         game.start_hand();
+        eprintln!(
+            "DEBUG: Initial hand - phase={}, pot={}, player_cards={}",
+            game.get_phase_name(),
+            game.pot,
+            game.players[0].cards.len()
+        );
     }
     state.update_ui();
 
@@ -544,6 +564,7 @@ fn main() {
     let window = weak_window.upgrade().unwrap();
 
     window.on_new_hand(move || {
+        eprintln!("DEBUG: on_new_hand callback triggered");
         state_clone.simulate_one_hand();
     });
 
