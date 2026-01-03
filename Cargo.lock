@@ -4115,6 +4115,7 @@ dependencies = [
  "rand 0.8.5",
  "slint",
  "slint-build",
+ "wasm-bindgen",
 ]
 
 [[package]]

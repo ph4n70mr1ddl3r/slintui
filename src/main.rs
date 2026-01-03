@@ -1,3 +1,4 @@
+use slint::ComponentHandle;
 use slint_poker::MainWindow;
 
 fn main() {
