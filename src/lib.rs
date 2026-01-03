@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 slint::include_modules!();
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct Card {
     rank: String,
     suit: String,
@@ -456,45 +456,6 @@ impl AppState {
             window.set_show_winner(false);
         }
     }
-
-    fn handle_action(&self, action: &str) {
-        let mut game = self.game.lock().unwrap();
-        if !game.players[game.current_player].is_user {
-            return;
-        }
-
-        let amount = match action {
-            "raise" | "bet" => Some(50),
-            "all-in" => Some(game.players[0].chips),
-            _ => None,
-        };
-
-        if game.player_action(action, amount) {
-            drop(game);
-            self.update_ui();
-        }
-    }
-
-    fn simulate_one_hand(&self) {
-        eprintln!("DEBUG: simulate_one_hand called");
-        {
-            let mut game = self.game.lock().unwrap();
-            eprintln!(
-                "DEBUG: Before simulate_hand - phase={}, pot={}",
-                game.get_phase_name(),
-                game.pot
-            );
-            game.simulate_hand();
-            eprintln!(
-                "DEBUG: After simulate_hand - phase={}, pot={}, community_cards={}",
-                game.get_phase_name(),
-                game.pot,
-                game.community_cards.len()
-            );
-        }
-        self.update_ui();
-        eprintln!("DEBUG: update_ui done");
-    }
 }
 
 impl Clone for AppState {
@@ -508,64 +469,24 @@ impl Clone for AppState {
 
 fn main() {
     let main_window = MainWindow::new().unwrap();
-
     let weak_window = main_window.as_weak();
+
     let state = Arc::new(AppState::new(weak_window.clone()));
 
-    eprintln!("DEBUG: Starting initial hand");
     {
         let mut game = state.game.lock().unwrap();
         game.start_hand();
-        eprintln!(
-            "DEBUG: Initial hand - phase={}, pot={}, player_cards={}",
-            game.get_phase_name(),
-            game.pot,
-            game.players[0].cards.len()
-        );
     }
     state.update_ui();
 
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_check(move || {
-        state_clone.handle_action("check");
-    });
-
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_call(move || {
-        state_clone.handle_action("call");
-    });
-
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_fold(move || {
-        state_clone.handle_action("fold");
-    });
-
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_raise(move || {
-        state_clone.handle_action("raise");
-    });
-
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_all_in(move || {
-        state_clone.handle_action("all-in");
-    });
-
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
-
-    window.on_new_hand(move || {
-        eprintln!("DEBUG: on_new_hand callback triggered");
-        state_clone.simulate_one_hand();
+    let state = state.clone();
+    main_window.on_new_hand(move || {
+        println!("NEW HAND CLICKED!");
+        {
+            let mut game = state.game.lock().unwrap();
+            game.simulate_hand();
+        }
+        state.update_ui();
     });
 
     main_window.run().unwrap();
