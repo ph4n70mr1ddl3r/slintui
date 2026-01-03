@@ -8,10 +8,10 @@ export struct CardUI {
 }
 
 export component MainWindow inherits Window {
-    title: "Poker";
-    min-width: 360px;
-    min-height: 720px;
-    background: #0a3d0a;
+    title: "Texas Hold'em Poker";
+    min-width: 400px;
+    min-height: 700px;
+    background: #1a5c3a;
 
     in property <int> pot;
     in property <int> current_bet;
@@ -45,108 +45,258 @@ export component MainWindow inherits Window {
     callback all_in();
     callback new_hand();
 
-    VerticalBox {
-        padding: 0;
-        spacing: 0;
-        
-        Rectangle {
-            background: #1a5c1a;
-            border-width: 3px;
-            border-color: #4a2810;
-            
-            VerticalBox {
-                padding: 0;
-                spacing: 0;
-                
-                Rectangle {
-                    height: 130px;
-                    background: transparent;
-                    
-                    VerticalBox {
+    Rectangle {
+        background: @linear-gradient(180deg, #1a5c3a 0%, #0d3d20 50%, #0a331a 100%);
+
+        VerticalBox {
+            padding: 0;
+            spacing: 0;
+
+            Rectangle {
+                height: 100px;
+                background: @linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+
+                VerticalBox {
+                    alignment: end;
+                    padding-bottom: 8px;
+
+                    HorizontalBox {
                         alignment: center;
-                        spacing: 6px;
-                        
+                        spacing: 30px;
+
+                        Rectangle {
+                            width: 12px;
+                            height: 12px;
+                            background: #ffd700;
+                            border-radius: 6px;
+                        }
+
                         Text {
                             text: "♠ ♥ ♦ ♣ TEXAS HOLD'EM ♣ ♦ ♥ ♠";
-                            font-size: 14px;
+                            font-size: 13px;
                             font-weight: 800;
                             color: #ffd700;
                         }
-                        
+
                         Rectangle {
-                            width: 160px;
-                            height: 50px;
-                            background: #1a3d1a;
-                            border-radius: 8px;
+                            width: 12px;
+                            height: 12px;
+                            background: root.animation_active ? #ff4444 : #444444;
+                            border-radius: 6px;
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 120px;
+
+                VerticalBox {
+                    alignment: center;
+                    spacing: 8px;
+
+                    Rectangle {
+                        width: 180px;
+                        height: 55px;
+                        background: @linear-gradient(180deg, #2d5a2d 0%, #1a3d1a 100%);
+                        border-radius: 10px;
+                        border-width: 3px;
+                        border-color: #ffd700;
+
+                        VerticalBox {
+                            alignment: center;
+
+                            Text {
+                                text: "POT";
+                                font-size: 11px;
+                                color: #ffd700;
+                                font-weight: 700;
+                            }
+                            Text {
+                                text: "$" + root.pot;
+                                font-size: 22px;
+                                color: #ffffff;
+                                font-weight: 900;
+                            }
+                        }
+                    }
+
+                    HorizontalBox {
+                        spacing: 25px;
+                        alignment: center;
+
+                        Rectangle {
+                            width: 65px;
+                            height: 28px;
+                            background: #3d2020;
+                            border-radius: 14px;
                             border-width: 2px;
-                            border-color: #ffd700;
-                            
-                            VerticalBox {
+                            border-color: #ff6b6b;
+
+                            HorizontalBox {
                                 alignment: center;
+
                                 Text {
-                                    text: "POT";
+                                    text: "🤖 BOT";
                                     font-size: 10px;
-                                    color: #ffd700;
-                                    font-weight: 600;
-                                }
-                                Text {
-                                    text: "$" + root.pot;
-                                    font-size: 18px;
-                                    color: #ffffff;
-                                    font-weight: 800;
+                                    font-weight: 700;
+                                    color: #ff6b6b;
                                 }
                             }
                         }
-                        
-                        HorizontalBox {
-                            spacing: 20px;
-                            alignment: center;
-                            Text {
-                                text: "BOT (AI)";
-                                font-size: 12px;
-                                font-weight: 700;
-                                color: #ff6b6b;
+
+                        Rectangle {
+                            width: 75px;
+                            height: 28px;
+                            background: @linear-gradient(180deg, #2a4a3a 0%, #1a3a2a 100%);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: #4a6a5a;
+
+                            HorizontalBox {
+                                alignment: center;
+                                spacing: 4px;
+
+                                Text {
+                                    text: "💰 $" + root.bot_chips;
+                                    font-size: 11px;
+                                    color: #8ecdc4;
+                                    font-weight: 600;
+                                }
                             }
-                            Text {
-                                text: "$" + root.bot_chips;
-                                font-size: 11px;
-                                color: #8ecdc4;
-                            }
-                            Text {
-                                text: "Bet: $" + root.bot_bet;
-                                font-size: 10px;
-                                color: #ffd700;
+                        }
+
+                        Rectangle {
+                            width: 65px;
+                            height: 24px;
+                            background: rgba(255, 215, 0, 0.15);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: rgba(255, 215, 0, 0.5);
+
+                            HorizontalBox {
+                                alignment: center;
+
+                                Text {
+                                    text: "🎲 $" + root.bot_bet;
+                                    font-size: 10px;
+                                    color: #ffd700;
+                                    font-weight: 700;
+                                }
                             }
                         }
                     }
                 }
-                
-                Rectangle {
-                    height: 85px;
-                    background: transparent;
-                    
+            }
+
+            Rectangle {
+                height: 75px;
+
+                HorizontalBox {
+                    padding: 0;
+                    spacing: 10px;
+                    alignment: center;
+
+                    for card[idx] in root.bot_cards: Rectangle {
+                        width: 50px;
+                        height: 70px;
+                        background: card.visible ? @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%) : @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%);
+                        border-radius: 6px;
+                        border-width: card.visible ? 2px : 3px;
+                        border-color: card.visible ? #cccccc : #ffd700;
+
+                        if card.visible: VerticalBox {
+                            padding: 3px;
+                            spacing: 0;
+                            alignment: space-between;
+
+                            Text {
+                                text: card.rank;
+                                font-size: 12px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                font-weight: 800;
+                            }
+                            Text {
+                                text: card.suit;
+                                font-size: 20px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                            }
+                            Text {
+                                text: card.rank;
+                                font-size: 12px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                font-weight: 800;
+                                horizontal-alignment: right;
+                            }
+                        }
+                        if !card.visible: Rectangle {
+                            border-radius: 4px;
+                            Rectangle {
+                                background: @linear-gradient(135deg, #3a5a8a 0%, #1a3a5a 50%, #0d2a4a 100%);
+                                width: 100%;
+                                height: 100%;
+                                border-radius: 4px;
+                            }
+                            Rectangle {
+                                background: @linear-gradient(135deg, #4a6a9a 0%, #2a4a6a 100%);
+                                width: 36px;
+                                height: 50px;
+                                x: 6px;
+                                y: 9px;
+                                border-radius: 4px;
+                                border-width: 2px;
+                                border-color: rgba(255, 215, 0, 0.4);
+                            }
+                            Text {
+                                text: "🂠";
+                                font-size: 16px;
+                                color: rgba(255, 255, 255, 0.3);
+                                x: 14px;
+                                y: 25px;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 180px;
+
+                VerticalBox {
+                    alignment: center;
+                    spacing: 10px;
+
+                    Text {
+                        text: "COMMUNITY CARDS";
+                        font-size: 12px;
+                        color: #6a9a6a;
+                        font-weight: 700;
+                        letter-spacing: 2px;
+                    }
+
                     HorizontalBox {
                         padding: 0;
-                        spacing: 8px;
+                        spacing: 10px;
                         alignment: center;
-                        
-                        for card[idx] in root.bot_cards: Rectangle {
+
+                        for card in root.community_cards: Rectangle {
                             width: 45px;
                             height: 62px;
-                            background: card.visible ? #ffffff : #2a4a8a;
-                            border-radius: 4px;
-                            border-width: 1px;
-                            border-color: card.visible ? #888888 : #1a2a5a;
-                            
+                            background: card.visible ? @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%) : @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%);
+                            border-radius: 5px;
+                            border-width: card.visible ? 2px : 3px;
+                            border-color: card.visible ? #cccccc : #ffd700;
+
                             if card.visible: VerticalBox {
                                 padding: 2px;
                                 spacing: 0;
                                 alignment: space-between;
+
                                 Text {
                                     text: card.rank;
                                     font-size: 10px;
                                     color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 700;
+                                    font-weight: 800;
                                 }
                                 Text {
                                     text: card.suit;
@@ -157,287 +307,307 @@ export component MainWindow inherits Window {
                                     text: card.rank;
                                     font-size: 10px;
                                     color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 700;
+                                    font-weight: 800;
                                     horizontal-alignment: right;
                                 }
                             }
                             if !card.visible: Rectangle {
-                                background: #2a4a8a;
-                                border-radius: 2px;
                                 Rectangle {
-                                    background: #ffffff;
+                                    background: @linear-gradient(135deg, #3a5a8a 0%, #1a3a5a 50%, #0d2a4a 100%);
+                                    width: 100%;
+                                    height: 100%;
+                                    border-radius: 4px;
+                                }
+                                Rectangle {
+                                    background: @linear-gradient(135deg, #4a6a9a 0%, #2a4a6a 100%);
                                     width: 28px;
                                     height: 40px;
                                     x: 7px;
                                     y: 10px;
-                                    border-radius: 2px;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Rectangle {
-                    height: 160px;
-                    background: transparent;
-                    
-                    VerticalBox {
-                        alignment: center;
-                        spacing: 6px;
-                        
-                        Text {
-                            text: "COMMUNITY";
-                            font-size: 11px;
-                            color: #4a8a5a;
-                            font-weight: 600;
-                        }
-                        
-                        HorizontalBox {
-                            padding: 0;
-                            spacing: 8px;
-                            alignment: center;
-                            for card in root.community_cards: Rectangle {
-                                width: 40px;
-                                height: 55px;
-                                background: card.visible ? #ffffff : #1a2a5a;
-                                border-radius: 4px;
-                                border-width: 1px;
-                                border-color: card.visible ? #888888 : #0a1a3a;
-                                
-                                if card.visible: VerticalBox {
-                                    padding: 2px;
-                                    spacing: 0;
-                                    alignment: space-between;
-                                    Text {
-                                        text: card.rank;
-                                        font-size: 9px;
-                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                        font-weight: 700;
-                                    }
-                                    Text {
-                                        text: card.suit;
-                                        font-size: 14px;
-                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                    }
-                                    Text {
-                                        text: card.rank;
-                                        font-size: 9px;
-                                        color: card.card_color == "red" ? #cc0000 : #000000;
-                                        font-weight: 700;
-                                        horizontal-alignment: right;
-                                    }
-                                }
-                                if !card.visible: Rectangle {
-                                    background: #2a4a8a;
-                                    border-radius: 2px;
-                                    Rectangle {
-                                        background: #ffffff;
-                                        width: 24px;
-                                        height: 34px;
-                                        x: 7px;
-                                        y: 10px;
-                                        border-radius: 2px;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Text {
-                            text: root.phase_name;
-                            font-size: 16px;
-                            font-weight: 700;
-                            color: #ffffff;
-                        }
-                        
-                        if root.animation_active: Rectangle {
-                            background: #1a3d1a;
-                            border-radius: 4px;
-                            border-width: 1px;
-                            border-color: #00ff88;
-                            width: 120px;
-                            height: 24px;
-                            HorizontalBox {
-                                padding: 0;
-                                alignment: center;
-                                Text {
-                                    text: "◉ Thinking...";
-                                    font-size: 11px;
-                                    color: #00ff88;
-                                    font-weight: 600;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Rectangle {
-                    height: 85px;
-                    background: transparent;
-                    
-                    HorizontalBox {
-                        padding: 0;
-                        spacing: 8px;
-                        alignment: center;
-                        
-                        for card[idx] in root.player_cards: Rectangle {
-                            width: 45px;
-                            height: 62px;
-                            background: #ffffff;
-                            border-radius: 4px;
-                            border-width: 1px;
-                            border-color: #cccccc;
-                            
-                            VerticalBox {
-                                padding: 2px;
-                                spacing: 0;
-                                alignment: space-between;
-                                Text {
-                                    text: card.rank;
-                                    font-size: 10px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 700;
+                                    border-radius: 4px;
+                                    border-width: 2px;
+                                    border-color: rgba(255, 215, 0, 0.4);
                                 }
                                 Text {
-                                    text: card.suit;
-                                    font-size: 16px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                }
-                                Text {
-                                    text: card.rank;
-                                    font-size: 10px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 700;
-                                    horizontal-alignment: right;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Rectangle {
-                    height: 130px;
-                    background: transparent;
-                    
-                    VerticalBox {
-                        alignment: center;
-                        spacing: 8px;
-                        
-                        HorizontalBox {
-                            spacing: 20px;
-                            alignment: center;
-                            if root.current_player_name == "You" && !root.animation_active: Rectangle {
-                                width: 12px;
-                                height: 12px;
-                                background: #00ff00;
-                                border-radius: 6px;
-                            }
-                            Text {
-                                text: "YOU";
-                                font-size: 16px;
-                                font-weight: 700;
-                                color: #4ecdc4;
-                            }
-                            Text {
-                                text: "$" + root.player_chips;
-                                font-size: 13px;
-                                color: #8ecdc4;
-                            }
-                            Text {
-                                text: "Bet: $" + root.player_bet;
-                                font-size: 12px;
-                                color: #ffd700;
-                            }
-                        }
-                        
-                        if root.show_winner: Rectangle {
-                            background: rgba(0, 0, 0, 0.85);
-                            border-radius: 8px;
-                            border-width: 2px;
-                            border-color: #ffd700;
-                            width: 280px;
-                            height: 45px;
-                            
-                            VerticalBox {
-                                alignment: center;
-                                Text {
-                                    text: "🏆 " + root.winner_name + " WINS $" + root.pot + "!";
+                                    text: "🂠";
                                     font-size: 14px;
+                                    color: rgba(255, 255, 255, 0.3);
+                                    x: 13px;
+                                    y: 22px;
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 140px;
+                        height: 36px;
+                        background: @linear-gradient(180deg, #3a5a3a 0%, #2a4a2a 100%);
+                        border-radius: 18px;
+                        border-width: 2px;
+                        border-color: #5a8a5a;
+
+                        HorizontalBox {
+                            alignment: center;
+
+                            Text {
+                                text: "━━ " + root.phase_name.to_uppercase() + " ━━";
+                                font-size: 14px;
+                                font-weight: 800;
+                                color: #ffffff;
+                            }
+                        }
+                    }
+
+                    if root.animation_active: Rectangle {
+                        width: 140px;
+                        height: 30px;
+                        background: @linear-gradient(90deg, transparent 0%, rgba(0, 255, 136, 0.2) 50%, transparent 100%);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: #00ff88;
+
+                        HorizontalBox {
+                            alignment: center;
+
+                            Text {
+                                text: "⚡ THINKING...";
+                                font-size: 12px;
+                                color: #00ff88;
+                                font-weight: 700;
+                                letter-spacing: 1px;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 75px;
+
+                HorizontalBox {
+                    padding: 0;
+                    spacing: 10px;
+                    alignment: center;
+
+                    for card[idx] in root.player_cards: Rectangle {
+                        width: 50px;
+                        height: 70px;
+                        background: @linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+                        border-radius: 6px;
+                        border-width: 2px;
+                        border-color: #ffd700;
+
+                        VerticalBox {
+                            padding: 3px;
+                            spacing: 0;
+                            alignment: space-between;
+
+                            Text {
+                                text: card.rank;
+                                font-size: 12px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                font-weight: 800;
+                            }
+                            Text {
+                                text: card.suit;
+                                font-size: 20px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                            }
+                            Text {
+                                text: card.rank;
+                                font-size: 12px;
+                                color: card.card_color == "red" ? #cc0000 : #000000;
+                                font-weight: 800;
+                                horizontal-alignment: right;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 130px;
+
+                VerticalBox {
+                    alignment: center;
+                    spacing: 10px;
+
+                    HorizontalBox {
+                        spacing: 25px;
+                        alignment: center;
+
+                        if root.current_player_name == "You" && !root.animation_active: Rectangle {
+                            width: 14px;
+                            height: 14px;
+                            background: #00ff00;
+                            border-radius: 7px;
+                            border-width: 2px;
+                            border-color: #ffffff;
+                        }
+
+                        Rectangle {
+                            width: 70px;
+                            height: 28px;
+                            background: @linear-gradient(180deg, #2a4a5a 0%, #1a3a4a 100%);
+                            border-radius: 14px;
+                            border-width: 2px;
+                            border-color: #4ecdc4;
+
+                            HorizontalBox {
+                                alignment: center;
+
+                                Text {
+                                    text: "👤 YOU";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: #4ecdc4;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 80px;
+                            height: 28px;
+                            background: @linear-gradient(180deg, #2a4a3a 0%, #1a3a2a 100%);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: #4a6a5a;
+
+                            HorizontalBox {
+                                alignment: center;
+                                spacing: 4px;
+
+                                Text {
+                                    text: "💰 $" + root.player_chips;
+                                    font-size: 12px;
+                                    color: #8ecdc4;
+                                    font-weight: 700;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 65px;
+                            height: 24px;
+                            background: rgba(255, 215, 0, 0.15);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: rgba(255, 215, 0, 0.5);
+
+                            HorizontalBox {
+                                alignment: center;
+
+                                Text {
+                                    text: "🎲 $" + root.player_bet;
+                                    font-size: 11px;
                                     color: #ffd700;
                                     font-weight: 700;
                                 }
                             }
                         }
                     }
-                }
-                
-                Rectangle {
-                    height: 130px;
-                    background: #1a2a3a;
-                    border-width: 2px;
-                    border-color: #2a3a4a;
-                    
-                    VerticalBox {
-                        padding: 8px;
-                        spacing: 8px;
-                        alignment: center;
-                        
-                        HorizontalBox {
-                            padding: 0;
-                            spacing: 8px;
+
+                    if root.show_winner: Rectangle {
+                        background: @linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.85) 100%);
+                        border-radius: 12px;
+                        border-width: 3px;
+                        border-color: #ffd700;
+                        width: 300px;
+                        height: 55px;
+
+                        VerticalBox {
                             alignment: center;
-                            
-                            if root.show_actions && !root.animation_active: HorizontalBox {
-                                spacing: 8px;
-                                alignment: center;
-                                
-                                if root.can_check: Button {
-                                    text: "✓";
-                                    primary: true;
-                                    height: 42px;
-                                    width: 52px;
-                                    clicked => { root.check(); }
-                                }
-                                
-                                if root.can_call: Button {
-                                    text: "📞";
-                                    primary: true;
-                                    height: 42px;
-                                    width: 52px;
-                                    clicked => { root.call(); }
-                                }
-                                
-                                if root.can_fold: Button {
-                                    text: "✕";
-                                    primary: false;
-                                    height: 42px;
-                                    width: 52px;
-                                    clicked => { root.fold(); }
-                                }
-                                
-                                if root.can_raise: Button {
-                                    text: "↗";
-                                    primary: true;
-                                    height: 42px;
-                                    width: 52px;
-                                    clicked => { root.raise(); }
-                                }
-                                
-                                Button {
-                                    text: "⭐";
-                                    primary: true;
-                                    height: 42px;
-                                    width: 52px;
-                                    clicked => { root.all_in(); }
-                                }
+
+                            Text {
+                                text: "🏆 " + root.winner_name.to_uppercase() + " WINS $" + root.pot + "!";
+                                font-size: 16px;
+                                color: #ffd700;
+                                font-weight: 900;
+                                letter-spacing: 1px;
                             }
-                            
-                            Button {
-                                text: "🃏 New";
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 120px;
+                background: @linear-gradient(180deg, #1a2a3a 0%, #0d1a2a 100%);
+
+                VerticalBox {
+                    padding: 10px;
+                    spacing: 10px;
+                    alignment: center;
+
+                    HorizontalBox {
+                        padding: 0;
+                        spacing: 10px;
+                        alignment: center;
+
+                        if root.show_actions && !root.animation_active: HorizontalBox {
+                            spacing: 10px;
+                            alignment: center;
+
+                            if root.can_check: Button {
+                                text: "✓ CHECK";
+                                primary: true;
+                                height: 44px;
+                                width: 80px;
+                                clicked => { root.check(); }
+                            }
+
+                            if root.can_call: Button {
+                                text: "📞 CALL";
+                                primary: true;
+                                height: 44px;
+                                width: 80px;
+                                clicked => { root.call(); }
+                            }
+
+                            if root.can_fold: Button {
+                                text: "✕ FOLD";
                                 primary: false;
-                                height: 42px;
-                                width: 70px;
-                                clicked => { root.new_hand(); }
+                                height: 44px;
+                                width: 80px;
+                                clicked => { root.fold(); }
                             }
+
+                            if root.can_raise: Button {
+                                text: "↗ RAISE";
+                                primary: true;
+                                height: 44px;
+                                width: 90px;
+                                clicked => { root.raise(); }
+                            }
+
+                            Button {
+                                text: "⭐ ALL-IN";
+                                primary: true;
+                                height: 44px;
+                                width: 90px;
+                                clicked => { root.all_in(); }
+                            }
+                        }
+
+                        Button {
+                            text: "🃏 NEW HAND";
+                            primary: false;
+                            height: 44px;
+                            width: 110px;
+                            clicked => { root.new_hand(); }
+                        }
+                    }
+
+                    HorizontalBox {
+                        spacing: 15px;
+                        alignment: center;
+
+                        Text {
+                            text: "💬 " + root.player_last_action;
+                            font-size: 10px;
+                            color: #8ecdc4;
+                            font-weight: 500;
                         }
                     }
                 }
