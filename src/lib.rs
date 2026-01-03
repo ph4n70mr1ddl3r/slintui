@@ -1,6 +1,5 @@
-use rand::distributions::uniform::SampleRange;
-use rand::{seq::SliceRandom, thread_rng, Rng, RngCore};
-use slint::{ComponentHandle, VecModel};
+use rand::{seq::SliceRandom, thread_rng, Rng};
+use slint::{ComponentHandle, Timer, TimerMode, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -22,10 +21,6 @@ impl Card {
             value,
             is_face_up: false,
         }
-    }
-
-    fn to_string(&self) -> String {
-        format!("{} of {}", self.rank, self.suit)
     }
 }
 
@@ -72,7 +67,6 @@ struct PokerGame {
     dealer_position: usize,
     small_blind: i32,
     big_blind: i32,
-    animation_active: bool,
 }
 
 impl PokerGame {
@@ -105,7 +99,6 @@ impl PokerGame {
             dealer_position: 0,
             small_blind: 10,
             big_blind: 20,
-            animation_active: false,
         }
     }
 
@@ -154,11 +147,11 @@ impl PokerGame {
 
         self.players[sb_player].bet = self.small_blind;
         self.players[sb_player].chips -= self.small_blind;
-        self.players[sb_player].last_action = format!("Small Blind: {}", self.small_blind);
+        self.players[sb_player].last_action = format!("SB: {}", self.small_blind);
 
         self.players[bb_player].bet = self.big_blind;
         self.players[bb_player].chips -= self.big_blind;
-        self.players[bb_player].last_action = format!("Big Blind: {}", self.big_blind);
+        self.players[bb_player].last_action = format!("BB: {}", self.big_blind);
 
         self.current_bet = self.big_blind;
         self.pot += self.small_blind + self.big_blind;
@@ -235,7 +228,7 @@ impl PokerGame {
             }
             "check" => {
                 if player.bet >= self.current_bet {
-                    player.last_action = "Checked".to_string();
+                    player.last_action = "Check".to_string();
                     self.move_to_next_player();
                     return true;
                 }
@@ -245,8 +238,7 @@ impl PokerGame {
                 if player.chips >= to_bet {
                     player.chips -= to_bet - player.bet;
                     player.bet = to_bet;
-                    player.last_action =
-                        format!("{action}: {}", to_bet - player.bet + self.current_bet);
+                    player.last_action = format!("{}", to_bet);
                     self.current_bet = to_bet;
                     self.pot += to_bet;
                     self.move_to_next_player();
@@ -258,7 +250,7 @@ impl PokerGame {
                 if player.chips >= call_amount {
                     player.chips -= call_amount;
                     player.bet = self.current_bet;
-                    player.last_action = format!("Called: {}", call_amount);
+                    player.last_action = format!("Call: {}", call_amount);
                     self.pot += call_amount;
                     self.move_to_next_player();
                     return true;
@@ -347,23 +339,6 @@ impl PokerGame {
             return self.player_action("raise", Some(rng.gen_range(30..=player_chips.min(120))));
         }
 
-        if to_call == 0 {
-            if bot_aggressive {
-                let bet = rng.gen_range(20i32..=player_chips.min(100));
-                return self.player_action("bet", Some(bet));
-            } else {
-                return self.player_action("check", None);
-            }
-        }
-
-        if player_chips <= to_call {
-            return self.player_action("call", None);
-        }
-
-        if bot_aggressive && player_chips > to_call + 50 {
-            return self.player_action("raise", Some(rng.gen_range(30i32..=player_chips.min(120))));
-        }
-
         if to_call > player_chips / 3 {
             return self.player_action("fold", None);
         }
@@ -371,32 +346,40 @@ impl PokerGame {
         self.player_action("call", None)
     }
 
-    fn any_player_active(&self) -> bool {
-        self.players.iter().any(|p| !p.cards.is_empty())
-    }
-
     fn get_winner(&self) -> usize {
-        let mut best_score = 0;
+        let active_players: Vec<(usize, &Player)> = self
+            .players
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| !p.cards.is_empty())
+            .collect();
+
+        if active_players.len() == 1 {
+            return active_players[0].0;
+        }
+
+        let mut best_score = -1;
         let mut winner = 0;
 
-        for (i, player) in self.players.iter().enumerate() {
-            if player.cards.is_empty() {
-                continue;
-            }
+        for (i, player) in &active_players {
             let score = self.calculate_hand_score(player);
             if score > best_score {
                 best_score = score;
-                winner = i;
+                winner = *i;
             }
         }
 
         winner
     }
 
+    fn award_pot(&mut self) {
+        let winner = self.get_winner();
+        self.players[winner].chips += self.pot;
+    }
+
     fn calculate_hand_score(&self, player: &Player) -> i32 {
         let mut all_cards = player.cards.clone();
         all_cards.extend(self.community_cards.clone());
-
         let mut total = 0;
         for card in &all_cards {
             total += card.value;
@@ -430,7 +413,6 @@ impl AppState {
             game,
             main_window: window,
         };
-        state.game.borrow_mut().start_hand();
         state
     }
 
@@ -442,6 +424,7 @@ impl AppState {
         window.set_current_bet(game.current_bet);
         window.set_phase_name(game.get_phase_name().into());
         window.set_current_player_name(game.players[game.current_player].name.clone().into());
+        window.set_animation_active(true);
 
         let player_cards: Vec<CardUI> = game.players[0]
             .cards
@@ -490,7 +473,7 @@ impl AppState {
             let winner = game.get_winner();
             let winner_name = game.players[winner].name.clone();
             window.set_show_winner(true);
-            window.set_winner_name(winner_name.into());
+            window.set_winner_name(format!("{} wins {}!", winner_name, game.pot).into());
         } else {
             window.set_show_winner(false);
         }
@@ -511,75 +494,7 @@ impl AppState {
         if game.player_action(action, amount) {
             drop(game);
             self.update_ui();
-            self.run_simulation();
         }
-    }
-
-    fn run_simulation(&self) {
-        let state = Rc::new(self.clone());
-        let window = self.main_window.upgrade().unwrap();
-        window.set_animation_active(true);
-
-        let state_clone = state.clone();
-        let window_weak = self.main_window.clone();
-        let timer = Rc::new(RefCell::new(slint::Timer::default()));
-
-        let mut step = 0;
-
-        let timer_clone = timer.clone();
-        timer.borrow_mut().start(
-            slint::TimerMode::Repeated,
-            std::time::Duration::from_millis(800),
-            move || {
-                let window = match window_weak.upgrade() {
-                    Some(w) => w,
-                    None => {
-                        timer_clone.borrow_mut().stop();
-                        return;
-                    }
-                };
-
-                let mut game = state_clone.game.borrow_mut();
-
-                if step >= 10 {
-                    drop(game);
-                    window.set_animation_active(false);
-                    timer_clone.borrow_mut().stop();
-                    return;
-                }
-
-                if game.phase == GamePhase::Showdown {
-                    drop(game);
-                    state_clone.update_ui();
-                    window.set_animation_active(false);
-                    step = 0;
-                    timer_clone.borrow_mut().stop();
-                    return;
-                }
-
-                if game.any_player_active() {
-                    if game.players[game.current_player].is_user {
-                        game.simulate_user_action();
-                    } else {
-                        game.simulate_bot_action();
-                    }
-
-                    drop(game);
-                    state_clone.update_ui();
-                } else {
-                    if game.phase == GamePhase::PreFlop {
-                        drop(game);
-                        state_clone.update_ui();
-                        window.set_animation_active(false);
-                        step = 0;
-                        timer_clone.borrow_mut().stop();
-                        return;
-                    }
-                }
-
-                step += 1;
-            },
-        );
     }
 }
 
@@ -597,6 +512,10 @@ fn main() {
 
     let weak_window = main_window.as_weak();
     let state = Rc::new(AppState::new(weak_window.clone()));
+
+    let mut game = state.game.borrow_mut();
+    game.start_hand();
+    drop(game);
     state.update_ui();
 
     let state_clone = state.clone();
@@ -634,18 +553,134 @@ fn main() {
         state_clone.handle_action("all-in");
     });
 
-    let state_clone = state.clone();
-    let window = weak_window.upgrade().unwrap();
+    let window_weak = weak_window.clone();
+    let game_rc = state.game.clone();
 
-    window.on_new_hand(move || {
-        let mut game = state_clone.game.borrow_mut();
-        game.start_hand();
-        drop(game);
-        state_clone.update_ui();
-        state_clone.run_simulation();
-    });
+    let timer = Timer::default();
+    timer.start(
+        TimerMode::Repeated,
+        std::time::Duration::from_millis(400),
+        move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
 
-    state.run_simulation();
+            let mut game = game_rc.borrow_mut();
+
+            let active_players: Vec<usize> = game
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| !p.cards.is_empty())
+                .map(|(i, _)| i)
+                .collect();
+
+            if active_players.len() <= 1 || game.phase == GamePhase::Showdown {
+                let winner = game.get_winner();
+                let winner_name = game.players[winner].name.clone();
+
+                drop(game);
+
+                let game = game_rc.borrow();
+                window.set_show_winner(true);
+                window.set_winner_name(format!("{} wins {}!", winner_name, game.pot).into());
+
+                drop(game);
+                let mut game = game_rc.borrow_mut();
+                game.award_pot();
+                game.dealer_position = (game.dealer_position + 1) % game.players.len();
+                game.start_hand();
+
+                drop(game);
+                let game = game_rc.borrow();
+                window.set_pot(game.pot);
+                window.set_current_bet(game.current_bet);
+                window.set_phase_name(game.get_phase_name().into());
+                window
+                    .set_current_player_name(game.players[game.current_player].name.clone().into());
+                window.set_animation_active(true);
+
+                let player_cards: Vec<CardUI> = game.players[0]
+                    .cards
+                    .iter()
+                    .map(create_card_ui_data)
+                    .collect();
+                window.set_player_cards(Rc::new(VecModel::from(player_cards)).into());
+
+                let bot_cards: Vec<CardUI> = game.players[1]
+                    .cards
+                    .iter()
+                    .map(create_card_ui_data)
+                    .collect();
+                window.set_bot_cards(Rc::new(VecModel::from(bot_cards)).into());
+
+                let community_cards: Vec<CardUI> = game
+                    .community_cards
+                    .iter()
+                    .map(create_card_ui_data)
+                    .collect();
+                window.set_community_cards(Rc::new(VecModel::from(community_cards)).into());
+
+                window.set_player_chips(game.players[0].chips);
+                window.set_player_bet(game.players[0].bet);
+                window.set_player_last_action(game.players[0].last_action.clone().into());
+
+                window.set_bot_chips(game.players[1].chips);
+                window.set_bot_bet(game.players[1].bet);
+                window.set_bot_last_action(game.players[1].last_action.clone().into());
+
+                return;
+            }
+
+            let player_idx = game.current_player;
+            let is_user = game.players[player_idx].is_user;
+
+            if is_user {
+                game.simulate_user_action();
+            } else {
+                game.simulate_bot_action();
+            }
+
+            drop(game);
+
+            let game = game_rc.borrow();
+            window.set_pot(game.pot);
+            window.set_current_bet(game.current_bet);
+            window.set_phase_name(game.get_phase_name().into());
+            window.set_current_player_name(game.players[game.current_player].name.clone().into());
+            window.set_animation_active(true);
+
+            let player_cards: Vec<CardUI> = game.players[0]
+                .cards
+                .iter()
+                .map(create_card_ui_data)
+                .collect();
+            window.set_player_cards(Rc::new(VecModel::from(player_cards)).into());
+
+            let bot_cards: Vec<CardUI> = game.players[1]
+                .cards
+                .iter()
+                .map(create_card_ui_data)
+                .collect();
+            window.set_bot_cards(Rc::new(VecModel::from(bot_cards)).into());
+
+            let community_cards: Vec<CardUI> = game
+                .community_cards
+                .iter()
+                .map(create_card_ui_data)
+                .collect();
+            window.set_community_cards(Rc::new(VecModel::from(community_cards)).into());
+
+            window.set_player_chips(game.players[0].chips);
+            window.set_player_bet(game.players[0].bet);
+            window.set_player_last_action(game.players[0].last_action.clone().into());
+
+            window.set_bot_chips(game.players[1].chips);
+            window.set_bot_bet(game.players[1].bet);
+            window.set_bot_last_action(game.players[1].last_action.clone().into());
+        },
+    );
 
     main_window.run().unwrap();
 }
