@@ -591,6 +591,14 @@ export component MainWindow inherits Window {
                         }
                     }
 
+                    Button {
+                        text: "🃏 NEW HAND";
+                        primary: false;
+                        height: 44px;
+                        width: 110px;
+                        clicked => { root.new_hand(); }
+                    }
+
                     HorizontalBox {
                         spacing: 15px;
                         alignment: center;
