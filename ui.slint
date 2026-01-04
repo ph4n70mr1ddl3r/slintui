@@ -4,7 +4,6 @@ export struct CardUI {
     rank: string,
     suit: string,
     card_color: string,
-    visible: bool,
 }
 
 export component MainWindow inherits Window {
@@ -23,10 +22,9 @@ export component MainWindow inherits Window {
     in property <bool> can_fold;
     in property <bool> can_raise;
     in property <int> min_raise_amount;
-    in property <bool> animation_active;
     in property <bool> show_winner;
     in property <string> winner_name;
-    in property <bool> game_over;
+    in property <bool> hand_complete;
 
     in property <int> player_chips;
     in property <int> player_bet;
@@ -98,7 +96,7 @@ export component MainWindow inherits Window {
                         Rectangle {
                             width: 12px;
                             height: 12px;
-                            background: root.animation_active ? #ff4444 : #444444;
+                            background: root.show_actions ? #ff4444 : #444444;
                             border-radius: 6px;
                         }
                     }
@@ -217,12 +215,12 @@ export component MainWindow inherits Window {
                     for card[idx] in root.bot_cards: Rectangle {
                         width: 50px;
                         height: 70px;
-                        background: card.visible ? @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%) : @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%);
+                        background: card.suit == "🂠" ? @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%) : @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
                         border-radius: 6px;
-                        border-width: card.visible ? 2px : 3px;
-                        border-color: card.visible ? #cccccc : #ffd700;
+                        border-width: card.suit == "🂠" ? 3px : 2px;
+                        border-color: card.suit == "🂠" ? #ffd700 : #cccccc;
 
-                        if card.visible: VerticalBox {
+                        if card.suit != "🂠": VerticalBox {
                             padding: 3px;
                             spacing: 0;
                             alignment: space-between;
@@ -246,7 +244,7 @@ export component MainWindow inherits Window {
                                 horizontal-alignment: right;
                             }
                         }
-                        if !card.visible: Rectangle {
+                        if card.suit == "🂠": Rectangle {
                             border-radius: 4px;
                             Rectangle {
                                 background: @linear-gradient(135deg, #3a5a8a 0%, #1a3a5a 50%, #0d2a4a 100%);
@@ -351,7 +349,7 @@ export component MainWindow inherits Window {
                         }
                     }
 
-                    if root.animation_active: Rectangle {
+                    if root.show_actions: Rectangle {
                         width: 140px;
                         height: 30px;
                         background: @linear-gradient(90deg, transparent 0%, rgba(0, 255, 136, 0.2) 50%, transparent 100%);
@@ -363,30 +361,9 @@ export component MainWindow inherits Window {
                             alignment: center;
 
                             Text {
-                                text: "⚡ THINKING...";
+                                text: "⚡ YOUR TURN";
                                 font-size: 12px;
                                 color: #00ff88;
-                                font-weight: 700;
-                                letter-spacing: 1px;
-                            }
-                        }
-                    }
-
-                    if root.game_over: Rectangle {
-                        width: 160px;
-                        height: 32px;
-                        background: @linear-gradient(180deg, #4a3a2a 0%, #3a2a1a 100%);
-                        border-radius: 16px;
-                        border-width: 2px;
-                        border-color: #8a7a5a;
-
-                        HorizontalBox {
-                            alignment: center;
-
-                            Text {
-                                text: "✋ HAND COMPLETE";
-                                font-size: 12px;
-                                color: #d4c4a4;
                                 font-weight: 700;
                                 letter-spacing: 1px;
                             }
@@ -450,7 +427,7 @@ export component MainWindow inherits Window {
                         spacing: 25px;
                         alignment: center;
 
-                        if root.current_player_name == "You" && !root.animation_active && !root.game_over: Rectangle {
+                        if root.show_actions: Rectangle {
                             width: 14px;
                             height: 14px;
                             background: #00ff00;
@@ -533,7 +510,7 @@ export component MainWindow inherits Window {
                             alignment: center;
 
                             Text {
-                                text: "🏆 " + root.winner_name.to_uppercase() + " WINS $" + root.pot + "!";
+                                text: "🏆 " + root.winner_name.to_uppercase();
                                 font-size: 16px;
                                 color: #ffd700;
                                 font-weight: 900;
