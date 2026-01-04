@@ -6,6 +6,115 @@ export struct CardUI {
     card_color: string,
 }
 
+component CardDisplay {
+    in property <string> rank;
+    in property <string> suit;
+    in property <string> card_color;
+    in property <bool> is_face_down;
+
+    width: 50px;
+    height: 70px;
+
+    Rectangle {
+        background: is_face_down ? @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%) : @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+        border-radius: 6px;
+        border-width: is_face_down ? 3px : 2px;
+        border-color: is_face_down ? #ffd700 : #cccccc;
+
+        if !is_face_down: VerticalBox {
+            padding: 3px;
+            spacing: 0;
+            alignment: space-between;
+
+            Text {
+                text: rank;
+                font-size: 12px;
+                color: card_color == "red" ? #cc0000 : #000000;
+                font-weight: 800;
+            }
+            Text {
+                text: suit;
+                font-size: 20px;
+                color: card_color == "red" ? #cc0000 : #000000;
+            }
+            Text {
+                text: rank;
+                font-size: 12px;
+                color: card_color == "red" ? #cc0000 : #000000;
+                font-weight: 800;
+                horizontal-alignment: right;
+            }
+        }
+        if is_face_down: Rectangle {
+            border-radius: 4px;
+            Rectangle {
+                background: @linear-gradient(135deg, #3a5a8a 0%, #1a3a5a 50%, #0d2a4a 100%);
+                width: 100%;
+                height: 100%;
+                border-radius: 4px;
+            }
+            Rectangle {
+                background: @linear-gradient(135deg, #4a6a9a 0%, #2a4a6a 100%);
+                width: 36px;
+                height: 50px;
+                x: 6px;
+                y: 9px;
+                border-radius: 4px;
+                border-width: 2px;
+                border-color: rgba(255, 215, 0, 0.4);
+            }
+            Text {
+                text: "🂠";
+                font-size: 16px;
+                color: rgba(255, 255, 255, 0.3);
+                x: 14px;
+                y: 25px;
+            }
+        }
+    }
+}
+
+component CommunityCard {
+    in property <string> rank;
+    in property <string> suit;
+    in property <string> card_color;
+
+    width: 45px;
+    height: 62px;
+
+    Rectangle {
+        background: @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+        border-radius: 5px;
+        border-width: 2px;
+        border-color: #cccccc;
+
+        VerticalBox {
+            padding: 2px;
+            spacing: 0;
+            alignment: space-between;
+
+            Text {
+                text: rank;
+                font-size: 10px;
+                color: card_color == "red" ? #cc0000 : #000000;
+                font-weight: 800;
+            }
+            Text {
+                text: suit;
+                font-size: 16px;
+                color: card_color == "red" ? #cc0000 : #000000;
+            }
+            Text {
+                text: rank;
+                font-size: 10px;
+                color: card_color == "red" ? #cc0000 : #000000;
+                font-weight: 800;
+                horizontal-alignment: right;
+            }
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     title: "Texas Hold'em Poker";
     min-width: 400px;
@@ -212,64 +321,11 @@ export component MainWindow inherits Window {
                     spacing: 10px;
                     alignment: center;
 
-                    for card[idx] in root.bot_cards: Rectangle {
-                        width: 50px;
-                        height: 70px;
-                        background: card.suit == "🂠" ? @linear-gradient(180deg, #1a3a6a 0%, #0d2040 100%) : @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
-                        border-radius: 6px;
-                        border-width: card.suit == "🂠" ? 3px : 2px;
-                        border-color: card.suit == "🂠" ? #ffd700 : #cccccc;
-
-                        if card.suit != "🂠": VerticalBox {
-                            padding: 3px;
-                            spacing: 0;
-                            alignment: space-between;
-
-                            Text {
-                                text: card.rank;
-                                font-size: 12px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                                font-weight: 800;
-                            }
-                            Text {
-                                text: card.suit;
-                                font-size: 20px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                            }
-                            Text {
-                                text: card.rank;
-                                font-size: 12px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                                font-weight: 800;
-                                horizontal-alignment: right;
-                            }
-                        }
-                        if card.suit == "🂠": Rectangle {
-                            border-radius: 4px;
-                            Rectangle {
-                                background: @linear-gradient(135deg, #3a5a8a 0%, #1a3a5a 50%, #0d2a4a 100%);
-                                width: 100%;
-                                height: 100%;
-                                border-radius: 4px;
-                            }
-                            Rectangle {
-                                background: @linear-gradient(135deg, #4a6a9a 0%, #2a4a6a 100%);
-                                width: 36px;
-                                height: 50px;
-                                x: 6px;
-                                y: 9px;
-                                border-radius: 4px;
-                                border-width: 2px;
-                                border-color: rgba(255, 215, 0, 0.4);
-                            }
-                            Text {
-                                text: "🂠";
-                                font-size: 16px;
-                                color: rgba(255, 255, 255, 0.3);
-                                x: 14px;
-                                y: 25px;
-                            }
-                        }
+                    for card[idx] in root.bot_cards: CardDisplay {
+                        rank: card.rank;
+                        suit: card.suit;
+                        card_color: card.card_color;
+                        is_face_down: card.suit == "🂠";
                     }
                 }
             }
@@ -294,38 +350,10 @@ export component MainWindow inherits Window {
                         spacing: 10px;
                         alignment: center;
 
-                        for card in root.community_cards: Rectangle {
-                            width: 45px;
-                            height: 62px;
-                            background: @linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
-                            border-radius: 5px;
-                            border-width: 2px;
-                            border-color: #cccccc;
-
-                            VerticalBox {
-                                padding: 2px;
-                                spacing: 0;
-                                alignment: space-between;
-
-                                Text {
-                                    text: card.rank;
-                                    font-size: 10px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 800;
-                                }
-                                Text {
-                                    text: card.suit;
-                                    font-size: 16px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                }
-                                Text {
-                                    text: card.rank;
-                                    font-size: 10px;
-                                    color: card.card_color == "red" ? #cc0000 : #000000;
-                                    font-weight: 800;
-                                    horizontal-alignment: right;
-                                }
-                            }
+                        for card in root.community_cards: CommunityCard {
+                            rank: card.rank;
+                            suit: card.suit;
+                            card_color: card.card_color;
                         }
                     }
 
@@ -380,38 +408,11 @@ export component MainWindow inherits Window {
                     spacing: 10px;
                     alignment: center;
 
-                    for card[idx] in root.player_cards: Rectangle {
-                        width: 50px;
-                        height: 70px;
-                        background: @linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
-                        border-radius: 6px;
-                        border-width: 2px;
-                        border-color: #ffd700;
-
-                        VerticalBox {
-                            padding: 3px;
-                            spacing: 0;
-                            alignment: space-between;
-
-                            Text {
-                                text: card.rank;
-                                font-size: 12px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                                font-weight: 800;
-                            }
-                            Text {
-                                text: card.suit;
-                                font-size: 20px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                            }
-                            Text {
-                                text: card.rank;
-                                font-size: 12px;
-                                color: card.card_color == "red" ? #cc0000 : #000000;
-                                font-weight: 800;
-                                horizontal-alignment: right;
-                            }
-                        }
+                    for card[idx] in root.player_cards: CardDisplay {
+                        rank: card.rank;
+                        suit: card.suit;
+                        card_color: card.card_color;
+                        is_face_down: false;
                     }
                 }
             }

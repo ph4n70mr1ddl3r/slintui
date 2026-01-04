@@ -296,10 +296,6 @@ impl PokerGame {
         self.current_player = self.get_next_player();
     }
 
-    fn active_players(&self) -> usize {
-        self.players.iter().filter(|p| !p.cards.is_empty()).count()
-    }
-
     fn player_action(&mut self, action: &str, amount: Option<i32>) -> bool {
         let player = &mut self.players[self.current_player];
         let bet_amount = amount.unwrap_or(0);
@@ -460,8 +456,16 @@ impl PokerGame {
             );
             self.players[winner_idx].chips += self.pot;
         } else if active_players.len() == 2 {
-            let user_score = user.cards[0].value + user.cards[1].value;
-            let bot_score = bot.cards[0].value + bot.cards[1].value;
+            let user_score = if user.cards.len() >= 2 {
+                user.cards[0].value + user.cards[1].value
+            } else {
+                0
+            };
+            let bot_score = if bot.cards.len() >= 2 {
+                bot.cards[0].value + bot.cards[1].value
+            } else {
+                0
+            };
 
             for card in &self.community_cards {
                 println!("   + {} {} ({} pts)", card.rank, card.suit, card.value);
@@ -502,6 +506,20 @@ impl PokerGame {
             && !self.hand_complete
             && self.phase != GamePhase::Showdown
     }
+
+    fn is_game_over(&self) -> bool {
+        self.players.iter().any(|p| p.chips <= 0)
+    }
+
+    fn get_winner_name(&self) -> String {
+        if self.players[0].chips > self.players[1].chips {
+            "YOU WIN!".to_string()
+        } else if self.players[1].chips > self.players[0].chips {
+            "BOT WINS!".to_string()
+        } else {
+            "TIE GAME!".to_string()
+        }
+    }
 }
 
 fn create_card_ui_data(card: &Card) -> CardUI {
@@ -531,9 +549,11 @@ impl AppState {
         state
     }
 
-    fn update_ui(&self) {
+    fn update_ui(&self) -> bool {
         let game = self.game.borrow();
-        let window = self.main_window.upgrade().unwrap();
+        let Some(window) = self.main_window.upgrade() else {
+            return false;
+        };
 
         window.set_pot(game.pot);
         window.set_current_bet(game.current_bet);
@@ -595,6 +615,45 @@ impl AppState {
         window.set_min_raise_amount(min_raise);
 
         window.set_show_winner(false);
+        true
+    }
+
+    fn process_bot_turn(&self) {
+        let game = self.game.borrow();
+        if !game.is_bot_turn() {
+            return;
+        }
+        drop(game);
+        thread::sleep(Duration::from_millis(800));
+        loop {
+            let mut game = self.game.borrow_mut();
+            if !game.is_bot_turn() {
+                break;
+            }
+            game.make_bot_move();
+            game.check_phase_complete();
+            let done = game.hand_complete;
+            drop(game);
+            self.update_ui();
+            if done {
+                break;
+            }
+            thread::sleep(Duration::from_millis(600));
+        }
+    }
+
+    fn process_action(&self, action: &str, amount: Option<i32>) {
+        let mut game = self.game.borrow_mut();
+        if game.player_action(action, amount) {
+            println!("Pot: ${}", game.pot);
+            game.check_phase_complete();
+            let needs_bot = game.is_bot_turn();
+            drop(game);
+            self.update_ui();
+            if needs_bot {
+                self.process_bot_turn();
+            }
+        }
     }
 }
 
@@ -626,94 +685,19 @@ fn main() {
     let state_check = state.clone();
     main_window.on_check(move || {
         println!("\n>>> You CHECK");
-        let mut game = state_check.game.borrow_mut();
-        if game.player_action("check", None) {
-            println!("Pot: ${}", game.pot);
-            game.check_phase_complete();
-            let needs_bot = game.is_bot_turn();
-            drop(game);
-            state_check.update_ui();
-            if needs_bot {
-                thread::sleep(Duration::from_millis(800));
-                loop {
-                    let mut game = state_check.game.borrow_mut();
-                    if !game.is_bot_turn() {
-                        break;
-                    }
-                    game.make_bot_move();
-                    game.check_phase_complete();
-                    let done = game.hand_complete;
-                    drop(game);
-                    state_check.update_ui();
-                    if done {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(600));
-                }
-            }
-        }
+        state_check.process_action("check", None);
     });
 
     let state_call = state.clone();
     main_window.on_call(move || {
         println!("\n>>> You CALL");
-        let mut game = state_call.game.borrow_mut();
-        if game.player_action("call", None) {
-            println!("Pot: ${}", game.pot);
-            game.check_phase_complete();
-            let needs_bot = game.is_bot_turn();
-            drop(game);
-            state_call.update_ui();
-            if needs_bot {
-                thread::sleep(Duration::from_millis(800));
-                loop {
-                    let mut game = state_call.game.borrow_mut();
-                    if !game.is_bot_turn() {
-                        break;
-                    }
-                    game.make_bot_move();
-                    game.check_phase_complete();
-                    let done = game.hand_complete;
-                    drop(game);
-                    state_call.update_ui();
-                    if done {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(600));
-                }
-            }
-        }
+        state_call.process_action("call", None);
     });
 
     let state_fold = state.clone();
     main_window.on_fold(move || {
         println!("\n>>> You FOLD");
-        let mut game = state_fold.game.borrow_mut();
-        if game.player_action("fold", None) {
-            println!("Pot: ${}", game.pot);
-            game.check_phase_complete();
-            let needs_bot = game.is_bot_turn();
-            drop(game);
-            state_fold.update_ui();
-            if needs_bot {
-                thread::sleep(Duration::from_millis(800));
-                loop {
-                    let mut game = state_fold.game.borrow_mut();
-                    if !game.is_bot_turn() {
-                        break;
-                    }
-                    game.make_bot_move();
-                    game.check_phase_complete();
-                    let done = game.hand_complete;
-                    drop(game);
-                    state_fold.update_ui();
-                    if done {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(600));
-                }
-            }
-        }
+        state_fold.process_action("fold", None);
     });
 
     let state_raise = state.clone();
@@ -723,73 +707,40 @@ fn main() {
             game.current_bet + 20
         };
         println!("\n>>> You RAISE to ${}", amount);
-        let mut game = state_raise.game.borrow_mut();
-        if game.player_action("raise", Some(amount)) {
-            println!("Pot: ${}", game.pot);
-            game.check_phase_complete();
-            let needs_bot = game.is_bot_turn();
-            drop(game);
-            state_raise.update_ui();
-            if needs_bot {
-                thread::sleep(Duration::from_millis(800));
-                loop {
-                    let mut game = state_raise.game.borrow_mut();
-                    if !game.is_bot_turn() {
-                        break;
-                    }
-                    game.make_bot_move();
-                    game.check_phase_complete();
-                    let done = game.hand_complete;
-                    drop(game);
-                    state_raise.update_ui();
-                    if done {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(600));
-                }
-            }
-        }
+        state_raise.process_action("raise", Some(amount));
     });
 
     let state_all_in = state.clone();
     main_window.on_all_in(move || {
         println!("\n>>> You GO ALL-IN!");
-        let mut game = state_all_in.game.borrow_mut();
-        if game.player_action("all-in", None) {
-            println!("Pot: ${}", game.pot);
-            game.check_phase_complete();
-            let needs_bot = game.is_bot_turn();
-            drop(game);
-            state_all_in.update_ui();
-            if needs_bot {
-                thread::sleep(Duration::from_millis(800));
-                loop {
-                    let mut game = state_all_in.game.borrow_mut();
-                    if !game.is_bot_turn() {
-                        break;
-                    }
-                    game.make_bot_move();
-                    game.check_phase_complete();
-                    let done = game.hand_complete;
-                    drop(game);
-                    state_all_in.update_ui();
-                    if done {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(600));
-                }
-            }
-        }
+        state_all_in.process_action("all-in", None);
     });
 
     let state_new = state.clone();
     main_window.on_new_hand(move || {
         println!("\n=== NEW HAND ===");
-        let mut game = state_new.game.borrow_mut();
-        game.dealer_position = (game.dealer_position + 1) % 2;
-        game.start_hand();
-        drop(game);
-        state_new.update_ui();
+        let winner_name: Option<String> = {
+            let mut game = state_new.game.borrow_mut();
+            if game.is_game_over() {
+                println!("\n=== GAME OVER ===");
+                let winner = game.get_winner_name();
+                println!("{}", winner);
+                drop(game);
+                let window = state_new.main_window.upgrade();
+                if let Some(win) = window {
+                    win.set_show_winner(true);
+                    win.set_winner_name(winner.clone().into());
+                    win.set_hand_complete(true);
+                }
+                return;
+            }
+            game.dealer_position = (game.dealer_position + 1) % 2;
+            game.start_hand();
+            None
+        };
+        if winner_name.is_none() {
+            state_new.update_ui();
+        }
     });
 
     main_window.run().unwrap();
