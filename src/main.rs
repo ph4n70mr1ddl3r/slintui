@@ -13,6 +13,15 @@ const MIN_BET_AMOUNT: i32 = 30;
 const MAX_BET_AMOUNT: i32 = 150;
 const BOT_THINK_TIME_MS: u64 = 800;
 const PHASE_TRANSITION_TIME_MS: u64 = 600;
+const DEBUG_MODE: bool = false;
+
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        if DEBUG_MODE {
+            println!($($arg)*);
+        }
+    };
+}
 
 slint::include_modules!();
 
@@ -127,7 +136,7 @@ impl PokerGame {
     }
 
     fn start_hand(&mut self) {
-        println!("\n=== STARTING NEW HAND ===");
+        debug_log!("\n=== STARTING NEW HAND ===");
 
         self.create_deck();
         self.shuffle_deck();
@@ -145,9 +154,10 @@ impl PokerGame {
             player.last_action = String::new();
         }
 
-        println!(
+        debug_log!(
             "You: ${}  |  Bot: ${}",
-            self.players[0].chips, self.players[1].chips
+            self.players[0].chips,
+            self.players[1].chips
         );
 
         let dealer_idx = self.dealer_position;
@@ -176,21 +186,23 @@ impl PokerGame {
             )
         };
 
-        println!(
+        debug_log!(
             "Dealer: {}  |  SB: {}  |  BB: {}",
-            dealer_name, sb_name, bb_name
+            dealer_name,
+            sb_name,
+            bb_name
         );
 
         self.post_blinds();
         self.deal_hole_cards();
 
         self.current_player = (self.dealer_position + 3) % self.players.len();
-        println!(
+        debug_log!(
             "\n>>> {}'s turn ({})",
             self.players[self.current_player].name,
             self.get_phase_name()
         );
-        println!("Pot: ${}  |  Current bet: ${}", self.pot, self.current_bet);
+        debug_log!("Pot: ${}  |  Current bet: ${}", self.pot, self.current_bet);
     }
 
     fn post_blinds(&mut self) {
@@ -200,17 +212,19 @@ impl PokerGame {
         self.players[sb_player].bet = self.small_blind;
         self.players[sb_player].chips -= self.small_blind;
         self.players[sb_player].last_action = format!("SB: ${}", self.small_blind);
-        println!(
+        debug_log!(
             "  {} posts small blind: ${}",
-            self.players[sb_player].name, self.small_blind
+            self.players[sb_player].name,
+            self.small_blind
         );
 
         self.players[bb_player].bet = self.big_blind;
         self.players[bb_player].chips -= self.big_blind;
         self.players[bb_player].last_action = format!("BB: ${}", self.big_blind);
-        println!(
+        debug_log!(
             "  {} posts big blind: ${}",
-            self.players[bb_player].name, self.big_blind
+            self.players[bb_player].name,
+            self.big_blind
         );
 
         self.current_bet = self.big_blind;
@@ -218,7 +232,7 @@ impl PokerGame {
     }
 
     fn deal_hole_cards(&mut self) {
-        println!("\n Dealing hole cards...");
+        debug_log!("\n Dealing hole cards...");
         for i in 0..self.players.len() {
             if let Some(card) = self.deal_card() {
                 self.players[i].cards.push(card.clone());
@@ -227,7 +241,7 @@ impl PokerGame {
                 self.players[i].cards.push(card.clone());
             }
             if self.players[i].is_user {
-                println!(
+                debug_log!(
                     "  Your cards: {} {} | {} {}",
                     self.players[i].cards[0].rank,
                     self.players[i].cards[0].suit,
@@ -235,7 +249,7 @@ impl PokerGame {
                     self.players[i].cards[1].suit
                 );
             } else {
-                println!("  Bot cards: [hidden] [hidden]");
+                debug_log!("  Bot cards: [hidden] [hidden]");
             }
         }
     }
@@ -251,22 +265,22 @@ impl PokerGame {
     fn next_phase(&mut self) {
         match self.phase {
             GamePhase::PreFlop => {
-                println!("\n=== THE FLOP ===");
+                debug_log!("\n=== THE FLOP ===");
                 self.deal_community_cards(3);
                 self.phase = GamePhase::Flop;
             }
             GamePhase::Flop => {
-                println!("\n=== THE TURN ===");
+                debug_log!("\n=== THE TURN ===");
                 self.deal_community_cards(1);
                 self.phase = GamePhase::Turn;
             }
             GamePhase::Turn => {
-                println!("\n=== THE RIVER ===");
+                debug_log!("\n=== THE RIVER ===");
                 self.deal_community_cards(1);
                 self.phase = GamePhase::River;
             }
             GamePhase::River => {
-                println!("\n=== SHOWDOWN ===");
+                debug_log!("\n=== SHOWDOWN ===");
                 self.phase = GamePhase::Showdown;
                 self.do_showdown();
                 return;
@@ -289,9 +303,9 @@ impl PokerGame {
             .map(|c| format!("{} {}", c.rank, c.suit))
             .collect::<Vec<_>>()
             .join(" | ");
-        println!("\nCommunity cards: {}", community_str);
-        println!("\n>>> {}'s turn", self.players[self.current_player].name);
-        println!("Pot: ${}  |  Current bet: $0", self.pot);
+        debug_log!("\nCommunity cards: {}", community_str);
+        debug_log!("\n>>> {}'s turn", self.players[self.current_player].name);
+        debug_log!("Pot: ${}  |  Current bet: $0", self.pot);
     }
 
     fn get_phase_name(&self) -> String {
@@ -324,7 +338,7 @@ impl PokerGame {
 
         match action {
             "fold" => {
-                println!("  {} FOLDS!", player.name);
+                debug_log!("  {} FOLDS!", player.name);
                 player.cards.clear();
                 player.last_action = "Folded".to_string();
                 self.move_to_next_player();
@@ -332,7 +346,7 @@ impl PokerGame {
             }
             "check" => {
                 if player.bet >= self.current_bet {
-                    println!("  {} CHECKS", player.name);
+                    debug_log!("  {} CHECKS", player.name);
                     player.last_action = "Check".to_string();
                     self.move_to_next_player();
                     return true;
@@ -347,7 +361,7 @@ impl PokerGame {
                     player.chips -= actual_bet;
                     player.bet = to_bet;
                     let action_type = if action == "bet" { "BETS" } else { "RAISES" };
-                    println!("  {} {} ${}", player.name, action_type, actual_bet);
+                    debug_log!("  {} {} ${}", player.name, action_type, actual_bet);
                     player.last_action = format!("${}", to_bet);
                     self.current_bet = to_bet;
                     self.pot += to_bet;
@@ -360,7 +374,7 @@ impl PokerGame {
                 if player.chips >= call_amount {
                     player.chips -= call_amount;
                     player.bet = self.current_bet;
-                    println!("  {} CALLS ${}", player.name, call_amount);
+                    debug_log!("  {} CALLS ${}", player.name, call_amount);
                     player.last_action = format!("Call: ${}", call_amount);
                     self.pot += call_amount;
                     self.move_to_next_player();
@@ -372,7 +386,7 @@ impl PokerGame {
                 if all_in > 0 {
                     player.chips = 0;
                     player.bet += all_in;
-                    println!("  {} GOES ALL-IN FOR ${}!", player.name, all_in);
+                    debug_log!("  {} GOES ALL-IN FOR ${}!", player.name, all_in);
                     player.last_action = format!("All-In: ${}", all_in);
                     self.pot += all_in;
                     if player.bet > self.current_bet {
@@ -436,13 +450,13 @@ impl PokerGame {
         }
         self.showdown_done = true;
 
-        println!("\n=== SHOWDOWN RESULTS ===");
+        debug_log!("\n=== SHOWDOWN RESULTS ===");
 
         let user = &self.players[0];
         let bot = &self.players[1];
 
         if user.cards.len() >= 2 {
-            println!(
+            debug_log!(
                 "\n Your hand: {} {} | {} {} (score: {})",
                 user.cards[0].rank,
                 user.cards[0].suit,
@@ -451,11 +465,11 @@ impl PokerGame {
                 user.cards[0].value + user.cards[1].value
             );
         } else {
-            println!("\n Your hand: (folded)");
+            debug_log!("\n Your hand: (folded)");
         }
 
         if !bot.cards.is_empty() && bot.cards.len() >= 2 {
-            println!(
+            debug_log!(
                 " Bot hand: {} {} | {} {} (score: {})",
                 bot.cards[0].rank,
                 bot.cards[0].suit,
@@ -464,9 +478,9 @@ impl PokerGame {
                 bot.cards[0].value + bot.cards[1].value
             );
         } else if bot.cards.is_empty() {
-            println!(" Bot folded!");
+            debug_log!(" Bot folded!");
         } else {
-            println!(" Bot hand: (incomplete)");
+            debug_log!(" Bot hand: (incomplete)");
         }
 
         let active_players: Vec<(usize, &Player)> = self
@@ -478,9 +492,10 @@ impl PokerGame {
 
         if active_players.len() == 1 {
             let winner_idx = active_players[0].0;
-            println!(
+            debug_log!(
                 "\n  {} WINS ${} BY DEFAULT!",
-                active_players[0].1.name, self.pot
+                active_players[0].1.name,
+                self.pot
             );
             self.players[winner_idx].chips += self.pot;
             self.game_over = true;
@@ -497,20 +512,20 @@ impl PokerGame {
             };
 
             for card in &self.community_cards {
-                println!("   + {} {} ({} pts)", card.rank, card.suit, card.value);
+                debug_log!("   + {} {} ({} pts)", card.rank, card.suit, card.value);
             }
 
-            println!("\n  Your total: {} pts", user_score);
-            println!("  Bot total:  {} pts", bot_score);
+            debug_log!("\n  Your total: {} pts", user_score);
+            debug_log!("  Bot total:  {} pts", bot_score);
 
             if user_score > bot_score {
-                println!("\n  YOU WIN ${}!", self.pot);
+                debug_log!("\n  YOU WIN ${}!", self.pot);
                 self.players[0].chips += self.pot;
             } else if bot_score > user_score {
-                println!("\n  BOT WINS ${}!", self.pot);
+                debug_log!("\n  BOT WINS ${}!", self.pot);
                 self.players[1].chips += self.pot;
             } else {
-                println!("\n  SPLIT POT! Each gets ${}", self.pot / 2);
+                debug_log!("\n  SPLIT POT! Each gets ${}", self.pot / 2);
                 self.players[0].chips += self.pot / 2;
                 self.players[1].chips += self.pot / 2;
             }
@@ -518,9 +533,10 @@ impl PokerGame {
 
         self.hand_complete = true;
 
-        println!(
+        debug_log!(
             "\nYour chips: ${}  |  Bot chips: ${}",
-            self.players[0].chips, self.players[1].chips
+            self.players[0].chips,
+            self.players[1].chips
         );
     }
 
@@ -675,7 +691,7 @@ impl AppState {
     fn process_action(&self, action: &str, amount: Option<i32>) {
         let mut game = self.game.borrow_mut();
         if game.player_action(action, amount) {
-            println!("Pot: ${}", game.pot);
+            debug_log!("Pot: ${}", game.pot);
             game.check_phase_complete();
             let needs_bot = game.is_bot_turn();
             drop(game);
@@ -683,6 +699,34 @@ impl AppState {
             if needs_bot {
                 self.process_bot_turn();
             }
+        } else {
+            let current_player = game.current_player;
+            let player_chips = game.players[current_player].chips;
+            let current_bet = game.current_bet;
+            let player_bet = game.players[current_player].bet;
+
+            match action {
+                "check" => {
+                    game.players[current_player].last_action = "Cannot check".to_string();
+                }
+                "call" => {
+                    let call_amount = current_bet - player_bet;
+                    if player_chips < call_amount {
+                        game.players[current_player].last_action =
+                            "Not enough chips to call".to_string();
+                    }
+                }
+                "bet" | "raise" => {
+                    let to_bet = amount.unwrap_or(0).max(current_bet + MIN_RAISE);
+                    if player_chips < to_bet {
+                        game.players[current_player].last_action =
+                            "Not enough chips to raise".to_string();
+                    }
+                }
+                _ => {}
+            }
+            drop(game);
+            self.update_ui();
         }
     }
 }
@@ -697,7 +741,7 @@ impl Clone for AppState {
 }
 
 fn main() {
-    println!("TEXAS HOLD'EM POKER vs BOT");
+    debug_log!("TEXAS HOLD'EM POKER vs BOT");
 
     let main_window = match MainWindow::new() {
         Ok(window) => window,
@@ -716,23 +760,23 @@ fn main() {
     }
     state.update_ui();
 
-    println!("\nClick NEW HAND to start playing!");
+    debug_log!("\nClick NEW HAND to start playing!");
 
     let state_check = state.clone();
     main_window.on_check(move || {
-        println!("\n>>> You CHECK");
+        debug_log!("\n>>> You CHECK");
         state_check.process_action("check", None);
     });
 
     let state_call = state.clone();
     main_window.on_call(move || {
-        println!("\n>>> You CALL");
+        debug_log!("\n>>> You CALL");
         state_call.process_action("call", None);
     });
 
     let state_fold = state.clone();
     main_window.on_fold(move || {
-        println!("\n>>> You FOLD");
+        debug_log!("\n>>> You FOLD");
         state_fold.process_action("fold", None);
     });
 
@@ -742,30 +786,30 @@ fn main() {
             let game = state_raise.game.borrow();
             game.current_bet + MIN_RAISE
         };
-        println!("\n>>> You RAISE to ${}", amount);
+        debug_log!("\n>>> You RAISE to ${}", amount);
         state_raise.process_action("raise", Some(amount));
     });
 
     let state_all_in = state.clone();
     main_window.on_all_in(move || {
-        println!("\n>>> You GO ALL-IN!");
+        debug_log!("\n>>> You GO ALL-IN!");
         state_all_in.process_action("all-in", None);
     });
 
     let state_new = state.clone();
     main_window.on_new_hand(move || {
-        println!("\n=== NEW HAND ===");
+        debug_log!("\n=== NEW HAND ===");
         let show_winner: Option<(String, bool)> = {
             let mut game = state_new.game.borrow_mut();
             if game.is_game_over() {
-                println!("\n=== GAME OVER ===");
+                debug_log!("\n=== GAME OVER ===");
                 let winner = game.get_winner_name();
                 let was_game_over = game.game_over;
-                println!("{}", winner);
+                debug_log!("{}", winner);
 
                 if was_game_over {
-                    game.players[0].chips = 1000;
-                    game.players[1].chips = 1000;
+                    game.players[0].chips = STARTING_CHIPS;
+                    game.players[1].chips = STARTING_CHIPS;
                     game.dealer_position = 0;
                     game.game_over = false;
                 }
