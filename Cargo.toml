@@ -9,8 +9,8 @@ name = "slint-poker"
 path = "src/main.rs"
 
 [dependencies]
-slint = "1.14"
-rand = "0.8"
+slint = "^1.14"
+rand = "^0.8"
 
 [build-dependencies]
-slint-build = "1.14"
+slint-build = "^1.14"
