@@ -49,7 +49,7 @@ impl Player {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 enum GamePhase {
     PreFlop,
     Flop,
@@ -133,7 +133,41 @@ impl PokerGame {
         self.deck.pop()
     }
 
+    fn deal_hole_cards(&mut self) {
+        println!("  Dealing hole cards...");
+        for _ in 0..2 {
+            for i in 0..self.players.len() {
+                if let Some(card) = self.deal_card() {
+                    println!(
+                        "    {} receives {} of {}",
+                        self.players[i].name, card.rank, card.suit
+                    );
+                    self.players[i].cards.push(card);
+                }
+            }
+        }
+    }
+
+    fn deal_community_card(&mut self) -> bool {
+        if let Some(card) = self.deal_card() {
+            println!(
+                "  Dealing community card: {} of {} ({} community cards total)",
+                card.rank,
+                card.suit,
+                self.community_cards.len() + 1
+            );
+            self.community_cards.push(card);
+            true
+        } else {
+            false
+        }
+    }
+
     fn start_hand(&mut self) {
+        println!("\n========================================");
+        println!("STARTING NEW HAND");
+        println!("========================================");
+
         self.create_deck();
         self.shuffle_deck();
         self.community_cards.clear();
@@ -149,8 +183,25 @@ impl PokerGame {
             player.last_action = String::new();
         }
 
+        println!("Dealer position: {}", self.dealer_position);
+        println!(
+            "{} is SB ({}), {} is BB ({})",
+            self.players[(self.dealer_position + 1) % 2].name,
+            self.small_blind,
+            self.players[(self.dealer_position + 2) % 2].name,
+            self.big_blind
+        );
+
         self.post_blinds();
+        println!("Pot after blinds: ${}", self.pot);
+
+        self.deal_hole_cards();
+
         self.current_player = (self.dealer_position + 3) % self.players.len();
+        println!(
+            "Current player: {} ({}'s turn)",
+            self.current_player, self.players[self.current_player].name
+        );
     }
 
     fn post_blinds(&mut self) {
@@ -160,10 +211,18 @@ impl PokerGame {
         self.players[sb_player].bet = self.small_blind;
         self.players[sb_player].chips -= self.small_blind;
         self.players[sb_player].last_action = format!("SB: {}", self.small_blind);
+        println!(
+            "{} posts SB: ${}",
+            self.players[sb_player].name, self.small_blind
+        );
 
         self.players[bb_player].bet = self.big_blind;
         self.players[bb_player].chips -= self.big_blind;
         self.players[bb_player].last_action = format!("BB: {}", self.big_blind);
+        println!(
+            "{} posts BB: ${}",
+            self.players[bb_player].name, self.big_blind
+        );
 
         self.current_bet = self.big_blind;
         self.pot += self.small_blind + self.big_blind;
@@ -172,16 +231,28 @@ impl PokerGame {
     fn next_phase(&mut self) {
         match self.phase {
             GamePhase::PreFlop => {
+                println!("\n--- PHASE: FLOP ---");
+                println!("Dealing 3 community cards...");
+                for _ in 0..3 {
+                    self.deal_community_card();
+                }
                 self.phase = GamePhase::Flop;
                 self.cards_dealt_this_round = 0;
             }
             GamePhase::Flop => {
+                println!("\n--- PHASE: TURN ---");
+                println!("Dealing 1 community card...");
+                self.deal_community_card();
                 self.phase = GamePhase::Turn;
             }
             GamePhase::Turn => {
+                println!("\n--- PHASE: RIVER ---");
+                println!("Dealing 1 community card...");
+                self.deal_community_card();
                 self.phase = GamePhase::River;
             }
             GamePhase::River => {
+                println!("\n--- PHASE: SHOWDOWN ---");
                 self.phase = GamePhase::Showdown;
             }
             GamePhase::Showdown => {
@@ -189,6 +260,7 @@ impl PokerGame {
             }
             GamePhase::HandComplete => {}
         }
+        println!("Pot: ${}", self.pot);
     }
 
     fn get_phase_name(&self) -> String {
@@ -225,6 +297,7 @@ impl PokerGame {
 
         match action {
             "fold" => {
+                println!("{} FOLDS!", player.name);
                 player.cards.clear();
                 player.last_action = "Folded".to_string();
                 self.move_to_next_player();
@@ -232,6 +305,7 @@ impl PokerGame {
             }
             "check" => {
                 if player.bet >= self.current_bet {
+                    println!("{} CHECKS", player.name);
                     player.last_action = "Check".to_string();
                     self.move_to_next_player();
                     return true;
@@ -242,6 +316,14 @@ impl PokerGame {
                 if player.chips >= to_bet {
                     player.chips -= to_bet - player.bet;
                     player.bet = to_bet;
+                    let action_type = if action == "bet" { "BETS" } else { "RAISES" };
+                    println!(
+                        "{} {} ${} (total bet: ${})",
+                        player.name,
+                        action_type,
+                        to_bet - player.bet + if player.bet > 0 { player.bet } else { 0 },
+                        to_bet
+                    );
                     player.last_action = format!("Bet: {}", to_bet);
                     self.current_bet = to_bet;
                     self.pot += to_bet;
@@ -254,6 +336,7 @@ impl PokerGame {
                 if player.chips >= call_amount {
                     player.chips -= call_amount;
                     player.bet = self.current_bet;
+                    println!("{} CALLS ${}", player.name, call_amount);
                     player.last_action = format!("Call: {}", call_amount);
                     self.pot += call_amount;
                     self.move_to_next_player();
@@ -264,6 +347,7 @@ impl PokerGame {
                 let all_in = player.chips;
                 player.chips = 0;
                 player.bet += all_in;
+                println!("{} GOES ALL-IN FOR ${}!", player.name, all_in);
                 player.last_action = format!("All-In: {}", all_in);
                 self.pot += all_in;
                 if player.bet > self.current_bet {
@@ -304,6 +388,7 @@ impl PokerGame {
         let action = actions.choose(&mut rng).unwrap();
         let bet_amount = rng.gen_range(50..=player_chips.min(200));
 
+        println!("[BOT THINKING...]");
         self.player_action(action, Some(bet_amount));
     }
 
@@ -316,7 +401,34 @@ impl PokerGame {
             .collect();
 
         if active_players.len() == 1 {
+            println!(
+                "Only 1 player remaining - {} wins by default!",
+                active_players[0].1.name
+            );
             return active_players[0].0;
+        }
+
+        println!("\n--- SHOWDOWN ---");
+        println!(
+            "Your hand: {} {} = {} pts",
+            self.players[0].cards[0].rank,
+            self.players[0].cards[0].suit,
+            self.players[0].cards[0].value + self.players[0].cards[1].value
+        );
+        println!(
+            "Bot hand: {} {} {} {} = {} pts",
+            self.players[1].cards[0].rank,
+            self.players[1].cards[0].suit,
+            self.players[1].cards[1].rank,
+            self.players[1].cards[1].suit,
+            self.players[1].cards[0].value + self.players[1].cards[1].value
+        );
+
+        for card in &self.community_cards {
+            println!(
+                "  Community: {} {} ({} pts)",
+                card.rank, card.suit, card.value
+            );
         }
 
         let mut best_score = -1;
@@ -324,6 +436,7 @@ impl PokerGame {
 
         for (i, player) in &active_players {
             let score = self.calculate_hand_score(player);
+            println!("{} total hand score: {}", player.name, score);
             if score > best_score {
                 best_score = score;
                 winner = *i;
@@ -336,6 +449,28 @@ impl PokerGame {
     fn award_pot(&mut self) {
         let winner = self.get_winner();
         self.players[winner].chips += self.pot;
+        println!(
+            "\n{} WINS THE POT OF ${}!",
+            self.players[winner].name, self.pot
+        );
+        println!(
+            "{} now has ${}",
+            self.players[winner].name, self.players[winner].chips
+        );
+        println!(
+            "{} has ${}",
+            if winner == 0 {
+                &self.players[1].name
+            } else {
+                &self.players[0].name
+            },
+            if winner == 0 {
+                self.players[1].chips
+            } else {
+                self.players[0].chips
+            }
+        );
+        println!("========================================\n");
     }
 
     fn calculate_hand_score(&self, player: &Player) -> i32 {
@@ -496,6 +631,7 @@ fn main() {
             && !game.hand_complete
             && game.phase != GamePhase::Showdown
         {
+            println!("[AUTO] Bot's turn in {}", game.get_phase_name());
             game.simulate_bot_action();
             if game.phase == GamePhase::Showdown && game.community_cards.len() == 5 {
                 game.hand_complete = true;
@@ -566,51 +702,90 @@ fn main() {
 
     let state_new = state.clone();
     main_window.on_new_hand(move || {
-        println!("NEW HAND CLICKED!");
-        let mut game = state_new.game.borrow_mut();
-        game.start_hand();
-        drop(game);
+        println!("\n\n>>> NEW HAND CLICKED <<<\n");
+        {
+            let mut game = state_new.game.borrow_mut();
+            game.start_hand();
+        }
         state_new.update_ui();
 
         thread::sleep(Duration::from_millis(500));
 
+        let mut round = 0;
         loop {
-            let mut game = state_new.game.borrow_mut();
-            if game.hand_complete || game.phase == GamePhase::Showdown {
-                if game.phase == GamePhase::Showdown
-                    && game.community_cards.len() == 5
-                    && !game.hand_complete
-                {
+            round += 1;
+
+            let (phase_name, current_player_name, current_player_idx);
+            {
+                let game = state_new.game.borrow();
+                phase_name = game.get_phase_name();
+                current_player_idx = game.current_player;
+                current_player_name = game.players[game.current_player].name.clone();
+            }
+
+            println!(
+                "\n[Round {}] Phase: {}, Current player: {}",
+                round, phase_name, current_player_name
+            );
+
+            let (hand_complete, phase, community_cards_len, active_players_count, is_user);
+            {
+                let game = state_new.game.borrow();
+                hand_complete = game.hand_complete;
+                phase = game.phase.clone();
+                community_cards_len = game.community_cards.len();
+                active_players_count = game.active_players();
+                is_user = game.is_user_turn();
+            }
+
+            if hand_complete || phase == GamePhase::Showdown {
+                println!("Hand complete or at showdown, breaking...");
+                if phase == GamePhase::Showdown && community_cards_len == 5 && !hand_complete {
+                    println!("Awarding pot at showdown...");
+                    let mut game = state_new.game.borrow_mut();
                     game.hand_complete = true;
                     game.award_pot();
                 }
                 break;
             }
 
-            if game.active_players() <= 1 {
-                game.hand_complete = true;
-                if game.active_players() == 1 {
-                    game.award_pot();
+            if active_players_count <= 1 {
+                println!(
+                    "Only {} player(s) remaining, ending hand",
+                    active_players_count
+                );
+                {
+                    let mut game = state_new.game.borrow_mut();
+                    game.hand_complete = true;
+                    if active_players_count == 1 {
+                        game.award_pot();
+                    }
                 }
                 break;
             }
 
-            if game.is_user_turn() {
+            if is_user {
+                println!("It's YOUR turn - waiting for action");
                 break;
             }
 
-            game.simulate_bot_action();
+            println!("Bot is acting...");
+            {
+                let mut game = state_new.game.borrow_mut();
+                game.simulate_bot_action();
 
-            if game.phase == GamePhase::Showdown && game.community_cards.len() == 5 {
-                game.hand_complete = true;
-                game.award_pot();
+                if game.phase == GamePhase::Showdown && game.community_cards.len() == 5 {
+                    println!("Reached showdown with all community cards");
+                    game.hand_complete = true;
+                    game.award_pot();
+                }
             }
 
-            drop(game);
             state_new.update_ui();
             thread::sleep(Duration::from_millis(800));
         }
 
+        println!("Updating UI one final time...");
         state_new.update_ui();
     });
 
