@@ -2,6 +2,8 @@ use rand::{seq::SliceRandom, thread_rng, Rng};
 use slint::{ComponentHandle, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
 
 slint::include_modules!();
 
@@ -54,6 +56,7 @@ enum GamePhase {
     Turn,
     River,
     Showdown,
+    HandComplete,
 }
 
 struct PokerGame {
@@ -67,6 +70,8 @@ struct PokerGame {
     dealer_position: usize,
     small_blind: i32,
     big_blind: i32,
+    cards_dealt_this_round: usize,
+    hand_complete: bool,
 }
 
 impl PokerGame {
@@ -99,6 +104,23 @@ impl PokerGame {
             dealer_position: 0,
             small_blind: 10,
             big_blind: 20,
+            cards_dealt_this_round: 0,
+            hand_complete: false,
+        }
+    }
+
+    fn create_deck(&mut self) {
+        self.deck.clear();
+        let ranks = [
+            "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A",
+        ];
+        let suits = ["♠", "♥", "♦", "♣"];
+        let mut value = 2;
+        for rank in &ranks {
+            for suit in &suits {
+                self.deck.push(Card::new(rank, suit, value));
+            }
+            value += 1;
         }
     }
 
@@ -112,10 +134,14 @@ impl PokerGame {
     }
 
     fn start_hand(&mut self) {
+        self.create_deck();
         self.shuffle_deck();
         self.community_cards.clear();
         self.pot = 0;
         self.current_bet = 0;
+        self.phase = GamePhase::PreFlop;
+        self.cards_dealt_this_round = 0;
+        self.hand_complete = false;
 
         for player in &mut self.players {
             player.bet = 0;
@@ -123,21 +149,7 @@ impl PokerGame {
             player.last_action = String::new();
         }
 
-        let mut new_cards: Vec<Vec<Card>> = vec![Vec::new(), Vec::new()];
-        for _ in 0..2 {
-            for i in 0..self.players.len() {
-                if let Some(card) = self.deal_card() {
-                    new_cards[i].push(card);
-                }
-            }
-        }
-
-        for (i, player) in self.players.iter_mut().enumerate() {
-            player.cards = new_cards[i].clone();
-        }
-
         self.post_blinds();
-        self.phase = GamePhase::PreFlop;
         self.current_player = (self.dealer_position + 3) % self.players.len();
     }
 
@@ -157,32 +169,25 @@ impl PokerGame {
         self.pot += self.small_blind + self.big_blind;
     }
 
-    fn deal_community_cards(&mut self, count: usize) {
-        for _ in 0..count {
-            if let Some(card) = self.deal_card() {
-                self.community_cards.push(card);
-            }
-        }
-    }
-
     fn next_phase(&mut self) {
         match self.phase {
             GamePhase::PreFlop => {
                 self.phase = GamePhase::Flop;
-                self.deal_community_cards(3);
+                self.cards_dealt_this_round = 0;
             }
             GamePhase::Flop => {
                 self.phase = GamePhase::Turn;
-                self.deal_community_cards(1);
             }
             GamePhase::Turn => {
                 self.phase = GamePhase::River;
-                self.deal_community_cards(1);
             }
             GamePhase::River => {
                 self.phase = GamePhase::Showdown;
             }
-            GamePhase::Showdown => {}
+            GamePhase::Showdown => {
+                self.hand_complete = true;
+            }
+            GamePhase::HandComplete => {}
         }
     }
 
@@ -193,6 +198,7 @@ impl PokerGame {
             GamePhase::Turn => "Turn".to_string(),
             GamePhase::River => "River".to_string(),
             GamePhase::Showdown => "Showdown!".to_string(),
+            GamePhase::HandComplete => "Hand Complete".to_string(),
         }
     }
 
@@ -236,7 +242,7 @@ impl PokerGame {
                 if player.chips >= to_bet {
                     player.chips -= to_bet - player.bet;
                     player.bet = to_bet;
-                    player.last_action = format!("{}", to_bet);
+                    player.last_action = format!("Bet: {}", to_bet);
                     self.current_bet = to_bet;
                     self.pot += to_bet;
                     self.move_to_next_player();
@@ -271,7 +277,7 @@ impl PokerGame {
         false
     }
 
-    fn simulate_action(&mut self) {
+    fn simulate_bot_action(&mut self) {
         let player_chips = self.players[self.current_player].chips;
         let call_amount = self.current_bet - self.players[self.current_player].bet;
         let to_call = call_amount.max(0);
@@ -288,6 +294,7 @@ impl PokerGame {
             GamePhase::River if to_call == 0 => vec!["check", "bet", "fold"],
             GamePhase::River => vec!["call", "raise", "fold"],
             GamePhase::Showdown => vec![],
+            GamePhase::HandComplete => vec![],
         };
 
         if actions.is_empty() {
@@ -341,28 +348,20 @@ impl PokerGame {
         total
     }
 
-    fn simulate_hand(&mut self) {
-        self.start_hand();
+    fn is_user_turn(&self) -> bool {
+        self.players[self.current_player].is_user
+            && !self.hand_complete
+            && self.phase != GamePhase::Showdown
+    }
 
-        while self.phase != GamePhase::Showdown {
-            let active_players: Vec<usize> = self
-                .players
-                .iter()
-                .enumerate()
-                .filter(|(_, p)| !p.cards.is_empty())
-                .map(|(i, _)| i)
-                .collect();
+    fn is_bot_turn(&self) -> bool {
+        !self.players[self.current_player].is_user
+            && !self.hand_complete
+            && self.phase != GamePhase::Showdown
+    }
 
-            if active_players.len() <= 1 {
-                break;
-            }
-
-            self.simulate_action();
-        }
-
-        if self.phase == GamePhase::Showdown {
-            self.award_pot();
-        }
+    fn active_players(&self) -> usize {
+        self.players.iter().filter(|p| !p.cards.is_empty()).count()
     }
 }
 
@@ -402,7 +401,7 @@ impl AppState {
         window.set_current_bet(game.current_bet);
         window.set_phase_name(game.get_phase_name().into());
         window.set_current_player_name(game.players[game.current_player].name.clone().into());
-        window.set_animation_active(true);
+        window.set_game_over(game.hand_complete);
 
         let player_cards: Vec<CardUI> = game.players[0]
             .cards
@@ -414,7 +413,16 @@ impl AppState {
         let bot_cards: Vec<CardUI> = game.players[1]
             .cards
             .iter()
-            .map(create_card_ui_data)
+            .map(|c| CardUI {
+                rank: c.rank.clone().into(),
+                suit: c.suit.clone().into(),
+                card_color: if c.suit == "♥" || c.suit == "♦" {
+                    "red".into()
+                } else {
+                    "black".into()
+                },
+                visible: game.hand_complete || game.phase == GamePhase::Showdown,
+            })
             .collect();
         window.set_bot_cards(Rc::new(VecModel::from(bot_cards)).into());
 
@@ -433,8 +441,7 @@ impl AppState {
         window.set_bot_bet(game.players[1].bet);
         window.set_bot_last_action(game.players[1].last_action.clone().into());
 
-        let is_user_turn =
-            game.players[game.current_player].is_user && game.phase != GamePhase::Showdown;
+        let is_user_turn = game.is_user_turn();
         let call_amount = game.current_bet - game.players[0].bet;
         let can_check = call_amount <= 0;
         let can_call = game.players[0].chips >= call_amount.max(0);
@@ -447,7 +454,7 @@ impl AppState {
         window.set_can_raise(game.players[0].chips >= min_raise);
         window.set_min_raise_amount(min_raise);
 
-        if game.phase == GamePhase::Showdown {
+        if game.phase == GamePhase::Showdown && !game.hand_complete {
             let winner = game.get_winner();
             let winner_name = game.players[winner].name.clone();
             window.set_show_winner(true);
@@ -482,21 +489,128 @@ fn main() {
     println!("Initial hand dealt");
     state.update_ui();
 
+    let process_bot_turn = |state: &AppState| {
+        let mut game = state.game.borrow_mut();
+        while game.is_bot_turn()
+            && game.active_players() > 1
+            && !game.hand_complete
+            && game.phase != GamePhase::Showdown
+        {
+            game.simulate_bot_action();
+            if game.phase == GamePhase::Showdown && game.community_cards.len() == 5 {
+                game.hand_complete = true;
+                game.award_pot();
+            }
+            drop(game);
+            state.update_ui();
+            thread::sleep(Duration::from_millis(800));
+            game = state.game.borrow_mut();
+        }
+    };
+
     let state_check = state.clone();
     main_window.on_check(move || {
         println!("CHECK CLICKED!");
         let mut game = state_check.game.borrow_mut();
-        game.player_action("check", None);
-        drop(game);
-        state_check.update_ui();
+        if game.player_action("check", None) {
+            drop(game);
+            state_check.update_ui();
+            process_bot_turn(&state_check);
+        }
+    });
+
+    let state_call = state.clone();
+    main_window.on_call(move || {
+        println!("CALL CLICKED!");
+        let mut game = state_call.game.borrow_mut();
+        if game.player_action("call", None) {
+            drop(game);
+            state_call.update_ui();
+            process_bot_turn(&state_call);
+        }
+    });
+
+    let state_fold = state.clone();
+    main_window.on_fold(move || {
+        println!("FOLD CLICKED!");
+        let mut game = state_fold.game.borrow_mut();
+        if game.player_action("fold", None) {
+            drop(game);
+            state_fold.update_ui();
+            process_bot_turn(&state_fold);
+        }
+    });
+
+    let state_raise = state.clone();
+    main_window.on_raise(move || {
+        println!("RAISE CLICKED!");
+        let mut game = state_raise.game.borrow_mut();
+        let min_raise = game.current_bet + 20;
+        if game.player_action("raise", Some(min_raise)) {
+            drop(game);
+            state_raise.update_ui();
+            process_bot_turn(&state_raise);
+        }
+    });
+
+    let state_all_in = state.clone();
+    main_window.on_all_in(move || {
+        println!("ALL-IN CLICKED!");
+        let mut game = state_all_in.game.borrow_mut();
+        if game.player_action("all-in", None) {
+            drop(game);
+            state_all_in.update_ui();
+            process_bot_turn(&state_all_in);
+        }
     });
 
     let state_new = state.clone();
     main_window.on_new_hand(move || {
         println!("NEW HAND CLICKED!");
         let mut game = state_new.game.borrow_mut();
-        game.simulate_hand();
+        game.start_hand();
         drop(game);
+        state_new.update_ui();
+
+        thread::sleep(Duration::from_millis(500));
+
+        loop {
+            let mut game = state_new.game.borrow_mut();
+            if game.hand_complete || game.phase == GamePhase::Showdown {
+                if game.phase == GamePhase::Showdown
+                    && game.community_cards.len() == 5
+                    && !game.hand_complete
+                {
+                    game.hand_complete = true;
+                    game.award_pot();
+                }
+                break;
+            }
+
+            if game.active_players() <= 1 {
+                game.hand_complete = true;
+                if game.active_players() == 1 {
+                    game.award_pot();
+                }
+                break;
+            }
+
+            if game.is_user_turn() {
+                break;
+            }
+
+            game.simulate_bot_action();
+
+            if game.phase == GamePhase::Showdown && game.community_cards.len() == 5 {
+                game.hand_complete = true;
+                game.award_pot();
+            }
+
+            drop(game);
+            state_new.update_ui();
+            thread::sleep(Duration::from_millis(800));
+        }
+
         state_new.update_ui();
     });
 
