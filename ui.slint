@@ -145,6 +145,7 @@ export component MainWindow inherits Window {
     in property <[CardUI]> player_cards;
     in property <[CardUI]> bot_cards;
     in property <[CardUI]> community_cards;
+    in property <bool> game_over;
 
     callback check();
     callback call();
@@ -545,6 +546,7 @@ export component MainWindow inherits Window {
                                 primary: true;
                                 height: 44px;
                                 width: 80px;
+                                enabled: !root.game_over;
                                 clicked => { root.check(); }
                             }
 
@@ -553,6 +555,7 @@ export component MainWindow inherits Window {
                                 primary: true;
                                 height: 44px;
                                 width: 80px;
+                                enabled: !root.game_over;
                                 clicked => { root.call(); }
                             }
 
@@ -561,6 +564,7 @@ export component MainWindow inherits Window {
                                 primary: false;
                                 height: 44px;
                                 width: 80px;
+                                enabled: !root.game_over;
                                 clicked => { root.fold(); }
                             }
 
@@ -569,6 +573,7 @@ export component MainWindow inherits Window {
                                 primary: true;
                                 height: 44px;
                                 width: 90px;
+                                enabled: !root.game_over;
                                 clicked => { root.raise(); }
                             }
 
@@ -577,6 +582,7 @@ export component MainWindow inherits Window {
                                 primary: true;
                                 height: 44px;
                                 width: 90px;
+                                enabled: !root.game_over;
                                 clicked => { root.all_in(); }
                             }
                         }

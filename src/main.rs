@@ -5,6 +5,15 @@ use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
+const STARTING_CHIPS: i32 = 1000;
+const SMALL_BLIND: i32 = 10;
+const BIG_BLIND: i32 = 20;
+const MIN_RAISE: i32 = 20;
+const MIN_BET_AMOUNT: i32 = 30;
+const MAX_BET_AMOUNT: i32 = 150;
+const BOT_THINK_TIME_MS: u64 = 800;
+const PHASE_TRANSITION_TIME_MS: u64 = 600;
+
 slint::include_modules!();
 
 #[derive(Clone, Debug)]
@@ -38,7 +47,7 @@ impl Player {
     fn new(name: &str, is_user: bool) -> Self {
         Self {
             name: name.to_string(),
-            chips: 1000,
+            chips: STARTING_CHIPS,
             bet: 0,
             cards: Vec::new(),
             is_user,
@@ -69,29 +78,15 @@ struct PokerGame {
     big_blind: i32,
     hand_complete: bool,
     showdown_done: bool,
+    game_over: bool,
 }
 
 impl PokerGame {
     fn new() -> Self {
-        let mut deck = Vec::new();
-        let ranks = [
-            "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A",
-        ];
-        let suits = ["♠", "♥", "♦", "♣"];
-        let mut value = 2;
-        for rank in &ranks {
-            for suit in &suits {
-                deck.push(Card::new(rank, suit, value));
-            }
-            value += 1;
-        }
-
-        let mut players = Vec::new();
-        players.push(Player::new("You", true));
-        players.push(Player::new("Bot", false));
+        let players = vec![Player::new("You", true), Player::new("Bot", false)];
 
         Self {
-            deck,
+            deck: Vec::new(),
             community_cards: Vec::new(),
             players,
             current_player: 0,
@@ -99,10 +94,11 @@ impl PokerGame {
             pot: 0,
             current_bet: 0,
             dealer_position: 0,
-            small_blind: 10,
-            big_blind: 20,
+            small_blind: SMALL_BLIND,
+            big_blind: BIG_BLIND,
             hand_complete: false,
             showdown_done: false,
+            game_over: false,
         }
     }
 
@@ -141,6 +137,7 @@ impl PokerGame {
         self.phase = GamePhase::PreFlop;
         self.hand_complete = false;
         self.showdown_done = false;
+        self.game_over = false;
 
         for player in &mut self.players {
             player.bet = 0;
@@ -152,11 +149,36 @@ impl PokerGame {
             "You: ${}  |  Bot: ${}",
             self.players[0].chips, self.players[1].chips
         );
+
+        let dealer_idx = self.dealer_position;
+        let sb_idx = (self.dealer_position + 1) % self.players.len();
+        let bb_idx = (self.dealer_position + 2) % self.players.len();
+
+        let (dealer_name, sb_name, bb_name) = if self.players.len() == 2 {
+            if bb_idx == dealer_idx {
+                (
+                    self.players[dealer_idx].name.clone(),
+                    self.players[sb_idx].name.clone(),
+                    self.players[dealer_idx].name.clone(),
+                )
+            } else {
+                (
+                    self.players[dealer_idx].name.clone(),
+                    self.players[sb_idx].name.clone(),
+                    self.players[bb_idx].name.clone(),
+                )
+            }
+        } else {
+            (
+                self.players[dealer_idx].name.clone(),
+                self.players[sb_idx].name.clone(),
+                self.players[bb_idx].name.clone(),
+            )
+        };
+
         println!(
             "Dealer: {}  |  SB: {}  |  BB: {}",
-            self.players[self.dealer_position].name,
-            self.players[(self.dealer_position + 1) % 2].name,
-            self.players[(self.dealer_position + 2) % 2].name
+            dealer_name, sb_name, bb_name
         );
 
         self.post_blinds();
@@ -317,7 +339,7 @@ impl PokerGame {
                 }
             }
             "bet" | "raise" => {
-                let to_bet = bet_amount.max(self.current_bet + 20);
+                let to_bet = bet_amount.max(self.current_bet + MIN_RAISE);
                 if player.chips >= to_bet {
                     let call_part = (self.current_bet - player.bet).max(0);
                     let actual_bet = to_bet - call_part;
@@ -394,7 +416,7 @@ impl PokerGame {
 
         let action = actions.choose(&mut rng).unwrap();
         let bet_amount = match *action {
-            "bet" | "raise" => rng.gen_range(30..=player_chips.min(150)),
+            "bet" | "raise" => rng.gen_range(MIN_BET_AMOUNT..=player_chips.min(MAX_BET_AMOUNT)),
             _ => 0,
         };
 
@@ -403,7 +425,7 @@ impl PokerGame {
 
     fn check_phase_complete(&mut self) {
         if self.all_players_matched() {
-            thread::sleep(Duration::from_millis(600));
+            thread::sleep(Duration::from_millis(PHASE_TRANSITION_TIME_MS));
             self.next_phase();
         }
     }
@@ -419,16 +441,20 @@ impl PokerGame {
         let user = &self.players[0];
         let bot = &self.players[1];
 
-        println!(
-            "\n Your hand: {} {} | {} {} (score: {})",
-            user.cards[0].rank,
-            user.cards[0].suit,
-            user.cards[1].rank,
-            user.cards[1].suit,
-            user.cards[0].value + user.cards[1].value
-        );
+        if user.cards.len() >= 2 {
+            println!(
+                "\n Your hand: {} {} | {} {} (score: {})",
+                user.cards[0].rank,
+                user.cards[0].suit,
+                user.cards[1].rank,
+                user.cards[1].suit,
+                user.cards[0].value + user.cards[1].value
+            );
+        } else {
+            println!("\n Your hand: (folded)");
+        }
 
-        if !bot.cards.is_empty() {
+        if !bot.cards.is_empty() && bot.cards.len() >= 2 {
             println!(
                 " Bot hand: {} {} | {} {} (score: {})",
                 bot.cards[0].rank,
@@ -437,8 +463,10 @@ impl PokerGame {
                 bot.cards[1].suit,
                 bot.cards[0].value + bot.cards[1].value
             );
-        } else {
+        } else if bot.cards.is_empty() {
             println!(" Bot folded!");
+        } else {
+            println!(" Bot hand: (incomplete)");
         }
 
         let active_players: Vec<(usize, &Player)> = self
@@ -455,6 +483,7 @@ impl PokerGame {
                 active_players[0].1.name, self.pot
             );
             self.players[winner_idx].chips += self.pot;
+            self.game_over = true;
         } else if active_players.len() == 2 {
             let user_score = if user.cards.len() >= 2 {
                 user.cards[0].value + user.cards[1].value
@@ -507,10 +536,6 @@ impl PokerGame {
             && self.phase != GamePhase::Showdown
     }
 
-    fn is_game_over(&self) -> bool {
-        self.players.iter().any(|p| p.chips <= 0)
-    }
-
     fn get_winner_name(&self) -> String {
         if self.players[0].chips > self.players[1].chips {
             "YOU WIN!".to_string()
@@ -519,6 +544,10 @@ impl PokerGame {
         } else {
             "TIE GAME!".to_string()
         }
+    }
+
+    fn is_game_over(&self) -> bool {
+        self.game_over || self.players.iter().any(|p| p.chips <= 0)
     }
 }
 
@@ -605,7 +634,7 @@ impl AppState {
         let call_amount = game.current_bet - game.players[0].bet;
         let can_check = call_amount <= 0;
         let can_call = game.players[0].chips >= call_amount.max(0);
-        let min_raise = game.current_bet + 20;
+        let min_raise = game.current_bet + MIN_RAISE;
 
         window.set_show_actions(is_user_turn);
         window.set_can_check(can_check);
@@ -615,6 +644,7 @@ impl AppState {
         window.set_min_raise_amount(min_raise);
 
         window.set_show_winner(false);
+        window.set_game_over(game.is_game_over());
         true
     }
 
@@ -624,7 +654,7 @@ impl AppState {
             return;
         }
         drop(game);
-        thread::sleep(Duration::from_millis(800));
+        thread::sleep(Duration::from_millis(BOT_THINK_TIME_MS));
         loop {
             let mut game = self.game.borrow_mut();
             if !game.is_bot_turn() {
@@ -638,7 +668,7 @@ impl AppState {
             if done {
                 break;
             }
-            thread::sleep(Duration::from_millis(600));
+            thread::sleep(Duration::from_millis(PHASE_TRANSITION_TIME_MS));
         }
     }
 
@@ -669,7 +699,13 @@ impl Clone for AppState {
 fn main() {
     println!("TEXAS HOLD'EM POKER vs BOT");
 
-    let main_window = MainWindow::new().unwrap();
+    let main_window = match MainWindow::new() {
+        Ok(window) => window,
+        Err(e) => {
+            eprintln!("Failed to create window: {}", e);
+            return;
+        }
+    };
     let weak_window = main_window.as_weak();
 
     let state = Rc::new(AppState::new(weak_window.clone()));
@@ -704,7 +740,7 @@ fn main() {
     main_window.on_raise(move || {
         let amount = {
             let game = state_raise.game.borrow();
-            game.current_bet + 20
+            game.current_bet + MIN_RAISE
         };
         println!("\n>>> You RAISE to ${}", amount);
         state_raise.process_action("raise", Some(amount));
@@ -719,12 +755,21 @@ fn main() {
     let state_new = state.clone();
     main_window.on_new_hand(move || {
         println!("\n=== NEW HAND ===");
-        let winner_name: Option<String> = {
+        let show_winner: Option<(String, bool)> = {
             let mut game = state_new.game.borrow_mut();
             if game.is_game_over() {
                 println!("\n=== GAME OVER ===");
                 let winner = game.get_winner_name();
+                let was_game_over = game.game_over;
                 println!("{}", winner);
+
+                if was_game_over {
+                    game.players[0].chips = 1000;
+                    game.players[1].chips = 1000;
+                    game.dealer_position = 0;
+                    game.game_over = false;
+                }
+
                 drop(game);
                 let window = state_new.main_window.upgrade();
                 if let Some(win) = window {
@@ -738,7 +783,7 @@ fn main() {
             game.start_hand();
             None
         };
-        if winner_name.is_none() {
+        if show_winner.is_none() {
             state_new.update_ui();
         }
     });
