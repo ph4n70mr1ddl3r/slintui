@@ -146,6 +146,7 @@ export component MainWindow inherits Window {
     in property <[CardUI]> bot_cards;
     in property <[CardUI]> community_cards;
     in property <bool> game_over;
+    in property <string> error_message;
 
     callback check();
     callback call();
@@ -573,7 +574,7 @@ export component MainWindow inherits Window {
                                 primary: true;
                                 height: 44px;
                                 width: 90px;
-                                enabled: !root.game_over;
+                                enabled: !root.game_over && root.player_chips >= root.min_raise_amount;
                                 clicked => { root.raise(); }
                             }
 
@@ -605,6 +606,25 @@ export component MainWindow inherits Window {
                             font-size: 10px;
                             color: #8ecdc4;
                             font-weight: 500;
+                        }
+                    }
+
+                    if root.error_message != "": Rectangle {
+                        height: 24px;
+                        background: rgba(255, 68, 68, 0.2);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: #ff4444;
+
+                        HorizontalBox {
+                            alignment: center;
+
+                            Text {
+                                text: "⚠️ " + root.error_message;
+                                font-size: 10px;
+                                color: #ff6b6b;
+                                font-weight: 600;
+                            }
                         }
                     }
                 }

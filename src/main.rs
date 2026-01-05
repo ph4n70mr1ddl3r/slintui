@@ -15,6 +15,16 @@ const BOT_THINK_TIME_MS: u64 = 800;
 const PHASE_TRANSITION_TIME_MS: u64 = 600;
 const DEBUG_MODE: bool = false;
 
+const HIGH_HAND_THRESHOLD: i32 = 700;
+const MEDIUM_HAND_THRESHOLD: i32 = 500;
+const LOW_HAND_THRESHOLD: i32 = 300;
+const HIGH_HAND_RAISE_CHANCE: i32 = 70;
+const HIGH_HAND_CHECK_CHANCE: i32 = 30;
+const MEDIUM_HAND_BET_CHANCE: i32 = 50;
+const MEDIUM_HAND_CALL_CHANCE: i32 = 60;
+const LOW_HAND_CHECK_CHANCE: i32 = 40;
+const LOW_HAND_CALL_CHANCE: i32 = 30;
+
 macro_rules! debug_log {
     ($($arg:tt)*) => {
         if DEBUG_MODE {
@@ -56,12 +66,10 @@ enum HandRank {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 struct EvaluatedHand {
     rank: HandRank,
     primary_value: i32,
     secondary_values: Vec<i32>,
-    kickers: Vec<i32>,
 }
 
 fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand {
@@ -72,7 +80,6 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         .collect();
 
     all_cards.sort_by_key(|a| a.0);
-    all_cards.dedup_by_key(|a| a.0);
 
     let values: Vec<i32> = all_cards.iter().map(|a| a.0).collect();
     let suits: Vec<&str> = all_cards.iter().map(|a| a.1).collect();
@@ -85,15 +92,6 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
                 acc
             });
     let max_suit_count = suit_counts.values().max().copied().unwrap_or(0);
-    let _flush_suit = if max_suit_count >= 5 {
-        suit_counts
-            .iter()
-            .find(|(_, &v)| v == max_suit_count)
-            .map(|(&s, _)| s)
-    } else {
-        None
-    };
-
     let is_flush = max_suit_count >= 5;
 
     let mut is_straight = false;
@@ -172,10 +170,8 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             rank: HandRank::StraightFlush,
             primary_value: straight_high,
             secondary_values: Vec::new(),
-            kickers: Vec::new(),
         }
-    } else if !four_of_kind.is_empty() {
-        let four_val = four_of_kind[0];
+    } else if let Some(&four_val) = four_of_kind.first() {
         let kicker = values
             .iter()
             .filter(|&&v| v != four_val)
@@ -186,20 +182,18 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             rank: HandRank::FourOfAKind,
             primary_value: four_val,
             secondary_values: vec![kicker],
-            kickers: Vec::new(),
         }
     } else if has_full_house {
-        let three_val = three_of_kind[0];
-        let pair_val = pairs[0];
+        let three_val = three_of_kind.first().copied().unwrap_or(0);
+        let pair_val = pairs.first().copied().unwrap_or(0);
         EvaluatedHand {
             rank: HandRank::FullHouse,
             primary_value: three_val,
             secondary_values: vec![pair_val],
-            kickers: Vec::new(),
         }
     } else if is_flush {
         let sorted_flush: Vec<i32> = values.iter().copied().take(5).collect();
-        let kickers: Vec<i32> = values
+        let _kickers: Vec<i32> = values
             .iter()
             .filter(|&&v| !sorted_flush.contains(&v))
             .copied()
@@ -209,18 +203,16 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             rank: HandRank::Flush,
             primary_value: sorted_flush.iter().max().copied().unwrap_or(0),
             secondary_values: sorted_flush.iter().skip(1).copied().collect(),
-            kickers,
         }
     } else if is_straight {
         EvaluatedHand {
             rank: HandRank::Straight,
             primary_value: straight_high,
             secondary_values: Vec::new(),
-            kickers: Vec::new(),
         }
     } else if has_three_of_kind {
-        let three_val = three_of_kind[0];
-        let kickers: Vec<i32> = values
+        let three_val = three_of_kind.first().copied().unwrap_or(0);
+        let kicker_values: Vec<i32> = values
             .iter()
             .filter(|&&v| v != three_val)
             .copied()
@@ -229,15 +221,14 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         EvaluatedHand {
             rank: HandRank::ThreeOfAKind,
             primary_value: three_val,
-            secondary_values: kickers,
-            kickers: Vec::new(),
+            secondary_values: kicker_values,
         }
     } else if has_two_pair {
         let mut sorted_pairs: Vec<i32> = pairs.clone();
         sorted_pairs.sort_unstable();
         sorted_pairs.reverse();
-        let high_pair = sorted_pairs[0];
-        let low_pair = sorted_pairs[1];
+        let high_pair = sorted_pairs.first().copied().unwrap_or(0);
+        let low_pair = sorted_pairs.get(1).copied().unwrap_or(0);
         let kicker = values
             .iter()
             .filter(|&&v| !pairs.contains(&v))
@@ -248,11 +239,9 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             rank: HandRank::TwoPair,
             primary_value: high_pair,
             secondary_values: vec![low_pair, kicker],
-            kickers: Vec::new(),
         }
-    } else if pairs.len() == 1 {
-        let pair_val = pairs[0];
-        let kickers: Vec<i32> = values
+    } else if let Some(&pair_val) = pairs.first() {
+        let kicker_values: Vec<i32> = values
             .iter()
             .filter(|&&v| v != pair_val)
             .copied()
@@ -261,8 +250,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         EvaluatedHand {
             rank: HandRank::Pair,
             primary_value: pair_val,
-            secondary_values: kickers.clone(),
-            kickers: Vec::new(),
+            secondary_values: kicker_values,
         }
     } else {
         let top_five: Vec<i32> = values.iter().copied().take(5).collect();
@@ -270,7 +258,6 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             rank: HandRank::HighCard,
             primary_value: top_five.iter().max().copied().unwrap_or(0),
             secondary_values: top_five.iter().skip(1).copied().collect(),
-            kickers: Vec::new(),
         }
     }
 }
@@ -487,10 +474,10 @@ impl PokerGame {
         debug_log!("\n Dealing hole cards...");
         for i in 0..self.players.len() {
             if let Some(card) = self.deal_card() {
-                self.players[i].cards.push(card.clone());
+                self.players[i].cards.push(card);
             }
             if let Some(card) = self.deal_card() {
-                self.players[i].cards.push(card.clone());
+                self.players[i].cards.push(card);
             }
             if self.players[i].is_user {
                 debug_log!(
@@ -660,7 +647,6 @@ impl PokerGame {
 
         let player_chips = self.players[self.current_player].chips;
         let call_amount = (self.current_bet - self.players[self.current_player].bet).max(0);
-        let to_call = call_amount;
 
         let bot_hand = evaluate_hand(
             &self.players[self.current_player].cards,
@@ -668,147 +654,78 @@ impl PokerGame {
         );
         let hand_strength = bot_hand.rank as i32 * 100 + bot_hand.primary_value;
 
+        let (action, bet_amount) =
+            self.determine_bot_action(hand_strength, call_amount, player_chips);
+
+        self.player_action(action, Some(bet_amount));
+    }
+
+    fn determine_bot_action(
+        &self,
+        hand_strength: i32,
+        to_call: i32,
+        player_chips: i32,
+    ) -> (&'static str, i32) {
         let mut rng = thread_rng();
 
-        let actions = match self.phase {
-            GamePhase::PreFlop => {
-                if to_call == 0 {
-                    vec!["check", "bet", "raise", "fold"]
-                } else {
-                    vec!["call", "raise", "fold"]
-                }
-            }
-            GamePhase::Flop => {
-                if to_call == 0 {
-                    vec!["check", "bet", "fold"]
-                } else {
-                    vec!["call", "raise", "fold"]
-                }
-            }
-            GamePhase::Turn => {
-                if to_call == 0 {
-                    vec!["check", "bet", "fold"]
-                } else {
-                    vec!["call", "raise", "fold"]
-                }
-            }
-            GamePhase::River => {
-                if to_call == 0 {
-                    vec!["check", "bet", "fold"]
-                } else {
-                    vec!["call", "raise", "fold"]
-                }
-            }
-            GamePhase::Showdown => vec![],
-        };
-
-        if actions.is_empty() {
-            return;
-        }
-
-        let action = if hand_strength >= 700 {
-            match self.phase {
-                GamePhase::PreFlop if to_call == 0 => {
-                    if rng.gen_range(0..100) < 70 {
-                        "raise"
-                    } else {
-                        "check"
-                    }
-                }
-                GamePhase::PreFlop => {
-                    if rng.gen_range(0..100) < 80 {
-                        "call"
-                    } else {
-                        "raise"
-                    }
-                }
-                _ => {
-                    if rng.gen_range(0..100) < 75 {
-                        "raise"
-                    } else {
-                        "call"
-                    }
-                }
-            }
-        } else if hand_strength >= 500 {
-            match self.phase {
-                GamePhase::PreFlop if to_call == 0 => {
-                    if rng.gen_range(0..100) < 50 {
-                        "check"
-                    } else {
-                        "bet"
-                    }
-                }
-                GamePhase::PreFlop => {
-                    if rng.gen_range(0..100) < 60 {
-                        "call"
-                    } else {
-                        "raise"
-                    }
-                }
-                _ => {
-                    if rng.gen_range(0..100) < 50 {
-                        "call"
-                    } else {
-                        "raise"
-                    }
-                }
-            }
-        } else if hand_strength >= 300 {
-            match self.phase {
-                GamePhase::PreFlop if to_call == 0 => {
-                    if rng.gen_range(0..100) < 40 {
-                        "check"
-                    } else {
-                        "bet"
-                    }
-                }
-                GamePhase::PreFlop => {
-                    if rng.gen_range(0..100) < 40 {
-                        "call"
-                    } else {
-                        "raise"
-                    }
-                }
-                _ => {
-                    if rng.gen_range(0..100) < 30 {
-                        "call"
-                    } else {
-                        "raise"
-                    }
-                }
-            }
+        let action = if hand_strength >= HIGH_HAND_THRESHOLD {
+            self.select_action_for_strength(
+                GamePhase::PreFlop,
+                to_call,
+                &[
+                    (HIGH_HAND_RAISE_CHANCE, "raise"),
+                    (HIGH_HAND_CHECK_CHANCE, "check"),
+                ],
+                &[(80, "call"), (20, "raise")],
+                75,
+                &mut rng,
+            )
+        } else if hand_strength >= MEDIUM_HAND_THRESHOLD {
+            self.select_action_for_strength(
+                GamePhase::PreFlop,
+                to_call,
+                &[
+                    (MEDIUM_HAND_BET_CHANCE, "bet"),
+                    (100 - MEDIUM_HAND_BET_CHANCE, "check"),
+                ],
+                &[
+                    (MEDIUM_HAND_CALL_CHANCE, "call"),
+                    (100 - MEDIUM_HAND_CALL_CHANCE, "raise"),
+                ],
+                50,
+                &mut rng,
+            )
+        } else if hand_strength >= LOW_HAND_THRESHOLD {
+            self.select_action_for_strength(
+                GamePhase::PreFlop,
+                to_call,
+                &[
+                    (LOW_HAND_CHECK_CHANCE, "check"),
+                    (100 - LOW_HAND_CHECK_CHANCE, "bet"),
+                ],
+                &[
+                    (LOW_HAND_CALL_CHANCE, "call"),
+                    (100 - LOW_HAND_CALL_CHANCE, "raise"),
+                ],
+                30,
+                &mut rng,
+            )
         } else {
-            match self.phase {
-                GamePhase::PreFlop if to_call == 0 => {
-                    if rng.gen_range(0..100) < 30 {
-                        "check"
-                    } else {
-                        "fold"
-                    }
-                }
-                GamePhase::PreFlop => {
-                    if rng.gen_range(0..100) < 30 {
-                        "call"
-                    } else {
-                        "fold"
-                    }
-                }
-                _ => {
-                    if rng.gen_range(0..100) < 20 {
-                        "call"
-                    } else {
-                        "fold"
-                    }
-                }
-            }
+            self.select_action_for_strength(
+                GamePhase::PreFlop,
+                to_call,
+                &[(30, "check"), (70, "fold")],
+                &[(30, "call"), (70, "fold")],
+                20,
+                &mut rng,
+            )
         };
 
         let bet_amount = match action {
             "bet" | "raise" => {
-                let base_amount = if hand_strength >= 700 {
+                let base_amount = if hand_strength >= HIGH_HAND_THRESHOLD {
                     player_chips.min(MAX_BET_AMOUNT + 50)
-                } else if hand_strength >= 500 {
+                } else if hand_strength >= MEDIUM_HAND_THRESHOLD {
                     player_chips.min(MAX_BET_AMOUNT)
                 } else {
                     player_chips.min(MIN_BET_AMOUNT + 20)
@@ -818,7 +735,53 @@ impl PokerGame {
             _ => 0,
         };
 
-        self.player_action(action, Some(bet_amount));
+        (action, bet_amount)
+    }
+
+    fn select_action_for_strength<R: Rng>(
+        &self,
+        phase: GamePhase,
+        to_call: i32,
+        no_action_options: &[(i32, &'static str)],
+        call_options: &[(i32, &'static str)],
+        default_raise_chance: i32,
+        rng: &mut R,
+    ) -> &'static str {
+        match phase {
+            GamePhase::PreFlop if to_call == 0 => self.pick_random_action(no_action_options, rng),
+            GamePhase::PreFlop => self.pick_random_action(call_options, rng),
+            _ if to_call == 0 => {
+                if rng.gen_range(0..100) < default_raise_chance {
+                    "raise"
+                } else {
+                    "call"
+                }
+            }
+            _ => {
+                if rng.gen_range(0..100) < default_raise_chance {
+                    "raise"
+                } else {
+                    "call"
+                }
+            }
+        }
+    }
+
+    fn pick_random_action<R: Rng>(
+        &self,
+        options: &[(i32, &'static str)],
+        rng: &mut R,
+    ) -> &'static str {
+        let total: i32 = options.iter().map(|&(w, _)| w).sum();
+        let mut roll = rng.gen_range(0..total);
+
+        for &(weight, action) in options {
+            if roll < weight {
+                return action;
+            }
+            roll -= weight;
+        }
+        options.last().map(|&(_, a)| a).unwrap_or("check")
     }
 
     fn check_phase_complete(&mut self) {
@@ -1033,6 +996,7 @@ impl AppState {
 
         window.set_show_winner(false);
         window.set_game_over(game.is_game_over());
+        window.set_error_message("".into());
         true
     }
 
@@ -1066,10 +1030,13 @@ impl AppState {
             debug_log!("Pot: ${}", game.pot);
             game.check_phase_complete();
             let needs_bot = game.is_bot_turn();
+            let show_winner = game.showdown_done;
             drop(game);
             self.update_ui();
             if needs_bot {
                 self.process_bot_turn();
+            } else if show_winner {
+                self.show_winner_message();
             }
         } else {
             let current_player = game.current_player;
@@ -1077,28 +1044,56 @@ impl AppState {
             let current_bet = game.current_bet;
             let player_bet = game.players[current_player].bet;
 
-            match action {
-                "check" => {
-                    game.players[current_player].last_action = "Cannot check".to_string();
-                }
+            let error_msg = match action {
+                "check" => "Cannot check".to_string(),
                 "call" => {
                     let call_amount = current_bet - player_bet;
                     if player_chips < call_amount {
-                        game.players[current_player].last_action =
-                            "Not enough chips to call".to_string();
+                        "Not enough chips to call".to_string()
+                    } else {
+                        return;
                     }
                 }
                 "bet" | "raise" => {
                     let to_bet = amount.unwrap_or(0).max(current_bet + MIN_RAISE);
                     if player_chips < to_bet {
-                        game.players[current_player].last_action =
-                            "Not enough chips to raise".to_string();
+                        "Not enough chips to raise".to_string()
+                    } else {
+                        return;
                     }
                 }
-                _ => {}
-            }
+                _ => return,
+            };
+            game.players[current_player].last_action = error_msg.clone();
             drop(game);
+            self.set_error_message(error_msg);
             self.update_ui();
+        }
+    }
+
+    fn set_error_message(&self, message: String) {
+        if let Some(window) = self.main_window.upgrade() {
+            window.set_error_message(message.into());
+        }
+    }
+
+    fn show_winner_message(&self) {
+        let game = self.game.borrow();
+        if let Some(window) = self.main_window.upgrade() {
+            if game.showdown_done && game.hand_complete {
+                let user_eval = evaluate_hand(&game.players[0].cards, &game.community_cards);
+                let bot_eval = evaluate_hand(&game.players[1].cards, &game.community_cards);
+                let comparison = compare_hands(&user_eval, &bot_eval);
+                let winner = if comparison > 0 {
+                    "YOU WIN!"
+                } else if comparison < 0 {
+                    "BOT WINS!"
+                } else {
+                    "TIE GAME!"
+                };
+                window.set_winner_name(winner.into());
+                window.set_show_winner(true);
+            }
         }
     }
 }
@@ -1211,4 +1206,221 @@ fn main() {
             eprintln!("Window error: {}", e);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_card(rank: &str, suit: &str, value: i32) -> Card {
+        Card::new(rank, suit, value)
+    }
+
+    #[test]
+    fn test_high_card_evaluation() {
+        let hole = vec![create_card("2", "♠", 2), create_card("9", "♥", 9)];
+        let community = vec![
+            create_card("4", "♦", 4),
+            create_card("J", "♣", 11),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::HighCard);
+        assert_eq!(result.primary_value, 13);
+    }
+
+    #[test]
+    fn test_pair_evaluation() {
+        let hole = vec![create_card("A", "♠", 14), create_card("A", "♥", 14)];
+        let community = vec![
+            create_card("2", "♦", 2),
+            create_card("J", "♣", 11),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Pair);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_two_pair_evaluation() {
+        let hole = vec![create_card("A", "♠", 14), create_card("A", "♥", 14)];
+        let community = vec![
+            create_card("K", "♦", 13),
+            create_card("K", "♣", 13),
+            create_card("Q", "♠", 12),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::TwoPair);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_three_of_a_kind_evaluation() {
+        let hole = vec![create_card("A", "♠", 14), create_card("2", "♥", 2)];
+        let community = vec![
+            create_card("A", "♦", 14),
+            create_card("K", "♣", 13),
+            create_card("A", "♠", 14),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::ThreeOfAKind);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_straight_evaluation() {
+        let hole = vec![create_card("5", "♠", 5), create_card("6", "♥", 6)];
+        let community = vec![
+            create_card("7", "♦", 7),
+            create_card("8", "♣", 8),
+            create_card("9", "♠", 9),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Straight);
+        assert_eq!(result.primary_value, 9);
+    }
+
+    #[test]
+    fn test_flush_evaluation() {
+        let hole = vec![create_card("2", "♠", 2), create_card("5", "♠", 5)];
+        let community = vec![
+            create_card("8", "♠", 8),
+            create_card("J", "♠", 11),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Flush);
+        assert_eq!(result.primary_value, 13);
+    }
+
+    #[test]
+    fn test_full_house_evaluation() {
+        let hole = vec![create_card("A", "♠", 14), create_card("A", "♥", 14)];
+        let community = vec![
+            create_card("K", "♦", 13),
+            create_card("K", "♣", 13),
+            create_card("A", "♠", 14),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::FullHouse);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_four_of_a_kind_evaluation() {
+        let hole = vec![create_card("A", "♠", 14), create_card("A", "♥", 14)];
+        let community = vec![
+            create_card("A", "♦", 14),
+            create_card("K", "♣", 13),
+            create_card("A", "♠", 14),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::FourOfAKind);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_straight_flush_evaluation() {
+        let hole = vec![create_card("5", "♠", 5), create_card("6", "♠", 6)];
+        let community = vec![
+            create_card("7", "♠", 7),
+            create_card("8", "♠", 8),
+            create_card("4", "♠", 4),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::StraightFlush);
+        assert_eq!(result.primary_value, 8);
+    }
+
+    #[test]
+    fn test_compare_hands_high_card_wins() {
+        let hand1 = EvaluatedHand {
+            rank: HandRank::HighCard,
+            primary_value: 14,
+            secondary_values: vec![13, 12, 11, 10],
+        };
+        let hand2 = EvaluatedHand {
+            rank: HandRank::HighCard,
+            primary_value: 13,
+            secondary_values: vec![12, 11, 10, 9],
+        };
+        assert!(compare_hands(&hand1, &hand2) > 0);
+        assert!(compare_hands(&hand2, &hand1) < 0);
+    }
+
+    #[test]
+    fn test_compare_hands_pair_beats_high_card() {
+        let pair = EvaluatedHand {
+            rank: HandRank::Pair,
+            primary_value: 10,
+            secondary_values: vec![9, 8],
+        };
+        let high_card = EvaluatedHand {
+            rank: HandRank::HighCard,
+            primary_value: 14,
+            secondary_values: vec![13, 12, 11, 10],
+        };
+        assert!(compare_hands(&pair, &high_card) > 0);
+    }
+
+    #[test]
+    fn test_compare_hands_equal_returns_zero() {
+        let hand1 = EvaluatedHand {
+            rank: HandRank::Pair,
+            primary_value: 10,
+            secondary_values: vec![9, 8],
+        };
+        let hand2 = EvaluatedHand {
+            rank: HandRank::Pair,
+            primary_value: 10,
+            secondary_values: vec![9, 8],
+        };
+        assert_eq!(compare_hands(&hand1, &hand2), 0);
+    }
+
+    #[test]
+    fn test_compare_hands_same_rank_different_primary() {
+        let pair_high = EvaluatedHand {
+            rank: HandRank::Pair,
+            primary_value: 14,
+            secondary_values: vec![13, 12],
+        };
+        let pair_low = EvaluatedHand {
+            rank: HandRank::Pair,
+            primary_value: 10,
+            secondary_values: vec![13, 12],
+        };
+        assert!(compare_hands(&pair_high, &pair_low) > 0);
+    }
+
+    #[test]
+    fn test_wheel_straight_ace_low() {
+        let hole = vec![create_card("A", "♠", 14), create_card("2", "♥", 2)];
+        let community = vec![
+            create_card("3", "♦", 3),
+            create_card("4", "♣", 4),
+            create_card("5", "♠", 5),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Straight);
+    }
+
+    #[test]
+    fn test_game_new_has_correct_initial_state() {
+        let game = PokerGame::new();
+        assert_eq!(game.players.len(), 2);
+        assert_eq!(game.players[0].chips, STARTING_CHIPS);
+        assert_eq!(game.players[1].chips, STARTING_CHIPS);
+        assert_eq!(game.phase, GamePhase::PreFlop);
+    }
+
+    #[test]
+    fn test_player_new_has_correct_initial_state() {
+        let player = Player::new("Test", true);
+        assert_eq!(player.name, "Test");
+        assert_eq!(player.chips, STARTING_CHIPS);
+        assert_eq!(player.bet, 0);
+        assert!(player.is_user);
+    }
 }
