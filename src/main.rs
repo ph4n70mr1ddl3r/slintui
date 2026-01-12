@@ -72,6 +72,43 @@ struct EvaluatedHand {
     secondary_values: Vec<i32>,
 }
 
+fn is_wheel_straight(values: &[i32]) -> bool {
+    if values.len() < 5 {
+        return false;
+    }
+    let lowest = values[0];
+    let highest = values[values.len() - 1];
+    if highest - lowest != 12 {
+        return false;
+    }
+    let wheel = [2, 3, 4, 5, 14];
+    wheel.iter().all(|v| values.contains(v))
+}
+
+fn check_straight(values: &[i32]) -> (bool, i32) {
+    if values.len() < 5 {
+        return (false, 0);
+    }
+    for i in 0..=values.len() - 5 {
+        let mut straight_values = values[i..i + 5].to_vec();
+        straight_values.sort_unstable();
+        let mut consecutive = true;
+        for j in 0..4 {
+            if straight_values[j + 1] - straight_values[j] != 1 {
+                consecutive = false;
+                break;
+            }
+        }
+        if consecutive {
+            return (true, straight_values[4]);
+        }
+    }
+    if is_wheel_straight(values) {
+        return (true, 5);
+    }
+    (false, values.iter().max().copied().unwrap_or(0))
+}
+
 fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand {
     let mut all_cards: Vec<(i32, &str)> = hole_cards
         .iter()
@@ -94,48 +131,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
     let max_suit_count = suit_counts.values().max().copied().unwrap_or(0);
     let is_flush = max_suit_count >= 5;
 
-    let mut is_straight = false;
-    let straight_high = if values.len() >= 5 {
-        for i in 0..=values.len() - 5 {
-            let mut straight_values = values[i..i + 5].to_vec();
-            straight_values.sort_unstable();
-            let mut consecutive = true;
-            for j in 0..4 {
-                if straight_values[j + 1] - straight_values[j] != 1 {
-                    consecutive = false;
-                    break;
-                }
-            }
-            if consecutive {
-                is_straight = true;
-                break;
-            }
-        }
-        if !is_straight && values.len() >= 5 {
-            let lowest = values[0];
-            let highest = values[values.len() - 1];
-            if highest - lowest == 12 {
-                let has_ace = values.contains(&14);
-                let has_two = values.contains(&2);
-                if has_ace && has_two {
-                    let wheel = [2, 3, 4, 5, 14];
-                    let mut found_wheel = true;
-                    for v in &wheel {
-                        if !values.contains(v) {
-                            found_wheel = false;
-                            break;
-                        }
-                    }
-                    if found_wheel {
-                        is_straight = true;
-                    }
-                }
-            }
-        }
-        values.iter().max().copied().unwrap_or(0)
-    } else {
-        0
-    };
+    let (is_straight, straight_high) = check_straight(&values);
 
     let value_counts: std::collections::HashMap<i32, usize> =
         values
@@ -193,12 +189,6 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         }
     } else if is_flush {
         let sorted_flush: Vec<i32> = values.iter().copied().take(5).collect();
-        let _kickers: Vec<i32> = values
-            .iter()
-            .filter(|&&v| !sorted_flush.contains(&v))
-            .copied()
-            .take(2)
-            .collect();
         EvaluatedHand {
             rank: HandRank::Flush,
             primary_value: sorted_flush.iter().max().copied().unwrap_or(0),
@@ -922,11 +912,10 @@ struct AppState {
 impl AppState {
     fn new(window: slint::Weak<MainWindow>) -> Self {
         let game = Rc::new(RefCell::new(PokerGame::new()));
-        let state = Self {
+        Self {
             game,
             main_window: window,
-        };
-        state
+        }
     }
 
     fn update_ui(&self) -> bool {
