@@ -393,26 +393,12 @@ impl PokerGame {
         let sb_idx = (self.dealer_position + 1) % self.players.len();
         let bb_idx = (self.dealer_position + 2) % self.players.len();
 
-        let (dealer_name, sb_name, bb_name) = if self.players.len() == 2 {
-            if bb_idx == dealer_idx {
-                (
-                    self.players[dealer_idx].name.clone(),
-                    self.players[sb_idx].name.clone(),
-                    self.players[dealer_idx].name.clone(),
-                )
-            } else {
-                (
-                    self.players[dealer_idx].name.clone(),
-                    self.players[sb_idx].name.clone(),
-                    self.players[bb_idx].name.clone(),
-                )
-            }
+        let dealer_name = self.players[dealer_idx].name.clone();
+        let sb_name = self.players[sb_idx].name.clone();
+        let bb_name = if self.players.len() == 2 && bb_idx == dealer_idx {
+            dealer_name.clone()
         } else {
-            (
-                self.players[dealer_idx].name.clone(),
-                self.players[sb_idx].name.clone(),
-                self.players[bb_idx].name.clone(),
-            )
+            self.players[bb_idx].name.clone()
         };
 
         debug_log!(
