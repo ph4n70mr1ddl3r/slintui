@@ -1158,37 +1158,33 @@ fn main() {
     let state_new = state.clone();
     main_window.on_new_hand(move || {
         debug_log!("\n=== NEW HAND ===");
-        let show_winner: Option<(String, bool)> = {
-            let mut game = state_new.game.borrow_mut();
-            if game.is_game_over() {
-                debug_log!("\n=== GAME OVER ===");
-                let winner = game.get_winner_name();
-                let was_game_over = game.game_over;
-                debug_log!("{}", winner);
+        let mut game = state_new.game.borrow_mut();
+        if game.is_game_over() {
+            debug_log!("\n=== GAME OVER ===");
+            let winner = game.get_winner_name();
+            let was_game_over = game.game_over;
+            debug_log!("{}", winner);
 
-                if was_game_over {
-                    game.players[0].chips = STARTING_CHIPS;
-                    game.players[1].chips = STARTING_CHIPS;
-                    game.dealer_position = 0;
-                    game.game_over = false;
-                }
-
-                drop(game);
-                let window = state_new.main_window.upgrade();
-                if let Some(win) = window {
-                    win.set_show_winner(true);
-                    win.set_winner_name(winner.into());
-                    win.set_hand_complete(true);
-                }
-                return;
+            if was_game_over {
+                game.players[0].chips = STARTING_CHIPS;
+                game.players[1].chips = STARTING_CHIPS;
+                game.dealer_position = 0;
+                game.game_over = false;
             }
-            game.dealer_position = (game.dealer_position + 1) % 2;
-            game.start_hand();
-            None
-        };
-        if show_winner.is_none() {
-            state_new.update_ui();
+
+            drop(game);
+            let window = state_new.main_window.upgrade();
+            if let Some(win) = window {
+                win.set_show_winner(true);
+                win.set_winner_name(winner.into());
+                win.set_hand_complete(true);
+            }
+            return;
         }
+        game.dealer_position = (game.dealer_position + 1) % 2;
+        game.start_hand();
+        drop(game);
+        state_new.update_ui();
     });
 
     main_window.run().unwrap_or_else(|e| {
