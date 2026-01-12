@@ -537,13 +537,13 @@ impl PokerGame {
         debug_log!("Pot: ${}  |  Current bet: $0", self.pot);
     }
 
-    fn get_phase_name(&self) -> String {
+    fn get_phase_name(&self) -> &'static str {
         match self.phase {
-            GamePhase::PreFlop => "Pre-Flop".to_string(),
-            GamePhase::Flop => "Flop".to_string(),
-            GamePhase::Turn => "Turn".to_string(),
-            GamePhase::River => "River".to_string(),
-            GamePhase::Showdown => "Showdown!".to_string(),
+            GamePhase::PreFlop => "Pre-Flop",
+            GamePhase::Flop => "Flop",
+            GamePhase::Turn => "Turn",
+            GamePhase::River => "River",
+            GamePhase::Showdown => "Showdown!",
         }
     }
 
@@ -878,13 +878,13 @@ impl PokerGame {
             && self.phase != GamePhase::Showdown
     }
 
-    fn get_winner_name(&self) -> String {
+    fn get_winner_name(&self) -> &'static str {
         if self.players[0].chips > self.players[1].chips {
-            "YOU WIN!".to_string()
+            "YOU WIN!"
         } else if self.players[1].chips > self.players[0].chips {
-            "BOT WINS!".to_string()
+            "BOT WINS!"
         } else {
-            "TIE GAME!".to_string()
+            "TIE GAME!"
         }
     }
 
@@ -1177,7 +1177,7 @@ fn main() {
                 let window = state_new.main_window.upgrade();
                 if let Some(win) = window {
                     win.set_show_winner(true);
-                    win.set_winner_name(winner.clone().into());
+                    win.set_winner_name(winner.into());
                     win.set_hand_complete(true);
                 }
                 return;
