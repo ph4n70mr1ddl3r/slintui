@@ -550,18 +550,14 @@ impl PokerGame {
         }
     }
 
-    fn get_next_player(&self) -> usize {
-        (self.current_player + 1) % self.players.len()
+    fn move_to_next_player(&mut self) {
+        self.current_player = (self.current_player + 1) % self.players.len();
     }
 
     fn all_players_matched(&self) -> bool {
         self.players
             .iter()
             .all(|p| p.bet == self.current_bet || p.cards.is_empty())
-    }
-
-    fn move_to_next_player(&mut self) {
-        self.current_player = self.get_next_player();
     }
 
     fn player_action(&mut self, action: &str, amount: Option<i32>) -> bool {
@@ -830,12 +826,9 @@ impl PokerGame {
 
         if active_players.len() == 1 {
             let winner_idx = active_players[0].0;
-            debug_log!(
-                "\n  {} WINS ${} BY DEFAULT!",
-                active_players[0].1.name,
-                self.pot
-            );
-            self.players[winner_idx].chips += self.pot;
+            let winner_name = active_players[0].1.name.clone();
+            debug_log!("\n  {} WINS ${} BY DEFAULT!", winner_name, self.pot);
+            self.distribute_pot(&[winner_idx]);
             self.game_over = true;
         } else if active_players.len() == 2 {
             let user_eval = evaluate_hand(&user.cards, &self.community_cards);
@@ -848,14 +841,13 @@ impl PokerGame {
 
             if comparison > 0 {
                 debug_log!("\n  YOU WIN ${}!", self.pot);
-                self.players[0].chips += self.pot;
+                self.distribute_pot(&[0]);
             } else if comparison < 0 {
                 debug_log!("\n  BOT WINS ${}!", self.pot);
-                self.players[1].chips += self.pot;
+                self.distribute_pot(&[1]);
             } else {
                 debug_log!("\n  SPLIT POT! Each gets ${}", self.pot / 2);
-                self.players[0].chips += self.pot / 2;
-                self.players[1].chips += self.pot / 2;
+                self.distribute_pot(&[0, 1]);
             }
         }
 
@@ -892,6 +884,21 @@ impl PokerGame {
 
     fn is_game_over(&self) -> bool {
         self.game_over || self.players.iter().any(|p| p.chips <= 0)
+    }
+
+    fn distribute_pot(&mut self, winner_indices: &[usize]) {
+        let split_amount = self.pot / winner_indices.len() as i32;
+        let remainder = self.pot % winner_indices.len() as i32;
+
+        for &idx in winner_indices {
+            self.players[idx].chips += split_amount;
+        }
+
+        if remainder > 0 {
+            self.players[winner_indices[0]].chips += remainder;
+        }
+
+        self.pot = 0;
     }
 }
 
@@ -1482,5 +1489,71 @@ mod tests {
         assert_eq!(player.chips, STARTING_CHIPS);
         assert_eq!(player.bet, 0);
         assert!(player.is_user);
+    }
+
+    #[test]
+    fn test_distribute_pot_even_split() {
+        let mut game = PokerGame::new();
+        game.pot = 100;
+        game.players[0].chips = 500;
+        game.players[1].chips = 500;
+        game.distribute_pot(&[0, 1]);
+        assert_eq!(game.pot, 0);
+        assert_eq!(game.players[0].chips, 550);
+        assert_eq!(game.players[1].chips, 550);
+    }
+
+    #[test]
+    fn test_distribute_pot_odd_split_goes_to_first() {
+        let mut game = PokerGame::new();
+        game.pot = 101;
+        game.players[0].chips = 500;
+        game.players[1].chips = 500;
+        game.distribute_pot(&[0, 1]);
+        assert_eq!(game.pot, 0);
+        assert_eq!(game.players[0].chips, 551);
+        assert_eq!(game.players[1].chips, 550);
+    }
+
+    #[test]
+    fn test_distribute_pot_single_winner() {
+        let mut game = PokerGame::new();
+        game.pot = 100;
+        game.players[0].chips = 500;
+        game.players[1].chips = 500;
+        game.distribute_pot(&[1]);
+        assert_eq!(game.pot, 0);
+        assert_eq!(game.players[0].chips, 500);
+        assert_eq!(game.players[1].chips, 600);
+    }
+
+    #[test]
+    fn test_flush_kickers_complete() {
+        let hole = vec![create_card("A", "♠", 14), create_card("3", "♠", 3)];
+        let community = vec![
+            create_card("K", "♠", 13),
+            create_card("Q", "♠", 12),
+            create_card("J", "♠", 11),
+            create_card("9", "♠", 9),
+            create_card("5", "♦", 5),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Flush);
+        assert_eq!(result.primary_value, 14);
+        assert_eq!(result.secondary_values, vec![13, 12, 11, 9]);
+    }
+
+    #[test]
+    fn test_two_pair_kickers() {
+        let hole = vec![create_card("A", "♠", 14), create_card("K", "♥", 13)];
+        let community = vec![
+            create_card("A", "♦", 14),
+            create_card("K", "♣", 13),
+            create_card("Q", "♠", 12),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::TwoPair);
+        assert_eq!(result.primary_value, 14);
+        assert_eq!(result.secondary_values, vec![13, 12]);
     }
 }
