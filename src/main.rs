@@ -76,11 +76,6 @@ fn is_wheel_straight(values: &[i32]) -> bool {
     if values.len() < 5 {
         return false;
     }
-    let lowest = values[0];
-    let highest = values[values.len() - 1];
-    if highest - lowest != 12 {
-        return false;
-    }
     let wheel = [2, 3, 4, 5, 14];
     wheel.iter().all(|v| values.contains(v))
 }
@@ -106,7 +101,7 @@ fn check_straight(values: &[i32]) -> (bool, i32) {
     if is_wheel_straight(values) {
         return (true, 5);
     }
-    (false, values.iter().max().copied().unwrap_or(0))
+    (false, 0)
 }
 
 fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand {
@@ -188,11 +183,23 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             secondary_values: vec![pair_val],
         }
     } else if is_flush {
-        let sorted_flush: Vec<i32> = values.iter().copied().take(5).collect();
+        let flush_suit = suit_counts
+            .iter()
+            .find(|(_, &count)| count >= 5)
+            .map(|(&suit, _)| suit);
+        let flush_values: Vec<i32> = all_cards
+            .iter()
+            .filter(|(_, suit)| Some(*suit) == flush_suit)
+            .map(|(v, _)| *v)
+            .collect();
+        let mut sorted_flush = flush_values;
+        sorted_flush.sort_unstable();
+        sorted_flush.reverse();
+        let top_five: Vec<i32> = sorted_flush.into_iter().take(5).collect();
         EvaluatedHand {
             rank: HandRank::Flush,
-            primary_value: sorted_flush.iter().max().copied().unwrap_or(0),
-            secondary_values: sorted_flush.iter().skip(1).copied().collect(),
+            primary_value: top_five[0],
+            secondary_values: top_five[1..].to_vec(),
         }
     } else if is_straight {
         EvaluatedHand {
@@ -243,11 +250,14 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             secondary_values: kicker_values,
         }
     } else {
-        let top_five: Vec<i32> = values.iter().copied().take(5).collect();
+        let mut sorted_values = values.clone();
+        sorted_values.sort_unstable();
+        sorted_values.reverse();
+        let top_five: Vec<i32> = sorted_values.into_iter().take(5).collect();
         EvaluatedHand {
             rank: HandRank::HighCard,
-            primary_value: top_five.iter().max().copied().unwrap_or(0),
-            secondary_values: top_five.iter().skip(1).copied().collect(),
+            primary_value: top_five[0],
+            secondary_values: top_five[1..].to_vec(),
         }
     }
 }
@@ -1264,6 +1274,33 @@ mod tests {
         let result = evaluate_hand(&hole, &community);
         assert_eq!(result.rank, HandRank::Flush);
         assert_eq!(result.primary_value, 13);
+        assert_eq!(result.secondary_values, vec![11, 8, 5, 2]);
+    }
+
+    #[test]
+    fn test_flush_with_mixed_suits() {
+        let hole = vec![create_card("2", "♠", 2), create_card("K", "♥", 13)];
+        let community = vec![
+            create_card("5", "♠", 5),
+            create_card("8", "♣", 8),
+            create_card("J", "♠", 11),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::HighCard);
+    }
+
+    #[test]
+    fn test_high_card_kickers_ordered() {
+        let hole = vec![create_card("2", "♠", 2), create_card("7", "♥", 7)];
+        let community = vec![
+            create_card("4", "♦", 4),
+            create_card("9", "♣", 9),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::HighCard);
+        assert_eq!(result.primary_value, 13);
+        assert_eq!(result.secondary_values, vec![9, 7, 4, 2]);
     }
 
     #[test]
@@ -1376,6 +1413,7 @@ mod tests {
         ];
         let result = evaluate_hand(&hole, &community);
         assert_eq!(result.rank, HandRank::Straight);
+        assert_eq!(result.primary_value, 5);
     }
 
     #[test]
