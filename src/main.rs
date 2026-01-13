@@ -209,12 +209,14 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         }
     } else if has_three_of_kind {
         let three_val = three_of_kind.first().copied().unwrap_or(0);
-        let kicker_values: Vec<i32> = values
+        let mut kicker_values: Vec<i32> = values
             .iter()
             .filter(|&&v| v != three_val)
             .copied()
-            .take(2)
             .collect();
+        kicker_values.sort_unstable();
+        kicker_values.reverse();
+        let kicker_values: Vec<i32> = kicker_values.into_iter().take(2).collect();
         EvaluatedHand {
             rank: HandRank::ThreeOfAKind,
             primary_value: three_val,
@@ -238,12 +240,11 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             secondary_values: vec![low_pair, kicker],
         }
     } else if let Some(&pair_val) = pairs.first() {
-        let kicker_values: Vec<i32> = values
-            .iter()
-            .filter(|&&v| v != pair_val)
-            .copied()
-            .take(3)
-            .collect();
+        let mut kicker_values: Vec<i32> =
+            values.iter().filter(|&&v| v != pair_val).copied().collect();
+        kicker_values.sort_unstable();
+        kicker_values.reverse();
+        let kicker_values: Vec<i32> = kicker_values.into_iter().take(3).collect();
         EvaluatedHand {
             rank: HandRank::Pair,
             primary_value: pair_val,
@@ -1222,6 +1223,21 @@ mod tests {
         let result = evaluate_hand(&hole, &community);
         assert_eq!(result.rank, HandRank::Pair);
         assert_eq!(result.primary_value, 14);
+        assert_eq!(result.secondary_values, vec![13, 11, 2]);
+    }
+
+    #[test]
+    fn test_pair_kickers_ordered() {
+        let hole = vec![create_card("5", "♠", 5), create_card("5", "♥", 5)];
+        let community = vec![
+            create_card("2", "♦", 2),
+            create_card("9", "♣", 9),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::Pair);
+        assert_eq!(result.primary_value, 5);
+        assert_eq!(result.secondary_values, vec![13, 9, 2]);
     }
 
     #[test]
@@ -1248,6 +1264,21 @@ mod tests {
         let result = evaluate_hand(&hole, &community);
         assert_eq!(result.rank, HandRank::ThreeOfAKind);
         assert_eq!(result.primary_value, 14);
+        assert_eq!(result.secondary_values, vec![13, 2]);
+    }
+
+    #[test]
+    fn test_three_of_a_kind_kickers_ordered() {
+        let hole = vec![create_card("7", "♠", 7), create_card("7", "♥", 7)];
+        let community = vec![
+            create_card("7", "♦", 7),
+            create_card("2", "♣", 2),
+            create_card("K", "♠", 13),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::ThreeOfAKind);
+        assert_eq!(result.primary_value, 7);
+        assert_eq!(result.secondary_values, vec![13, 2]);
     }
 
     #[test]
