@@ -660,11 +660,10 @@ impl PokerGame {
         player_chips: i32,
     ) -> (&'static str, i32) {
         let mut rng = thread_rng();
-        let phase = self.phase.clone();
 
         let action = if hand_strength >= HIGH_HAND_THRESHOLD {
             self.select_action_for_strength(
-                phase,
+                &self.phase,
                 to_call,
                 &[
                     (HIGH_HAND_RAISE_CHANCE, "raise"),
@@ -676,7 +675,7 @@ impl PokerGame {
             )
         } else if hand_strength >= MEDIUM_HAND_THRESHOLD {
             self.select_action_for_strength(
-                phase,
+                &self.phase,
                 to_call,
                 &[
                     (MEDIUM_HAND_BET_CHANCE, "bet"),
@@ -691,7 +690,7 @@ impl PokerGame {
             )
         } else if hand_strength >= LOW_HAND_THRESHOLD {
             self.select_action_for_strength(
-                phase,
+                &self.phase,
                 to_call,
                 &[
                     (LOW_HAND_CHECK_CHANCE, "check"),
@@ -706,7 +705,7 @@ impl PokerGame {
             )
         } else {
             self.select_action_for_strength(
-                phase,
+                &self.phase,
                 to_call,
                 &[(30, "check"), (70, "fold")],
                 &[(30, "call"), (70, "fold")],
@@ -734,7 +733,7 @@ impl PokerGame {
 
     fn select_action_for_strength<R: Rng>(
         &self,
-        phase: GamePhase,
+        phase: &GamePhase,
         to_call: i32,
         no_action_options: &[(i32, &'static str)],
         call_options: &[(i32, &'static str)],
