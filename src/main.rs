@@ -175,8 +175,14 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             secondary_values: vec![kicker],
         }
     } else if has_full_house {
-        let three_val = three_of_kind.first().copied().unwrap_or(0);
-        let pair_val = pairs.first().copied().unwrap_or(0);
+        let mut sorted_three: Vec<_> = three_of_kind.clone();
+        sorted_three.sort_unstable();
+        sorted_three.reverse();
+        let three_val = sorted_three.first().copied().unwrap_or(0);
+        let mut sorted_pairs: Vec<_> = pairs.clone();
+        sorted_pairs.sort_unstable();
+        sorted_pairs.reverse();
+        let pair_val = sorted_pairs.first().copied().unwrap_or(0);
         EvaluatedHand {
             rank: HandRank::FullHouse,
             primary_value: three_val,
@@ -1345,6 +1351,20 @@ mod tests {
         let result = evaluate_hand(&hole, &community);
         assert_eq!(result.rank, HandRank::FullHouse);
         assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_full_house_multiple_three_of_kind() {
+        let hole = vec![create_card("K", "♠", 13), create_card("K", "♥", 13)];
+        let community = vec![
+            create_card("A", "♦", 14),
+            create_card("A", "♣", 14),
+            create_card("A", "♠", 14),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::FullHouse);
+        assert_eq!(result.primary_value, 14);
+        assert_eq!(result.secondary_values, vec![13]);
     }
 
     #[test]
