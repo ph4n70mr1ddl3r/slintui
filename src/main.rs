@@ -84,21 +84,15 @@ fn check_straight(values: &[i32]) -> (bool, i32) {
     if values.len() < 5 {
         return (false, 0);
     }
-    for i in 0..=values.len() - 5 {
-        let mut straight_values = values[i..i + 5].to_vec();
-        straight_values.sort_unstable();
-        let mut consecutive = true;
-        for j in 0..4 {
-            if straight_values[j + 1] - straight_values[j] != 1 {
-                consecutive = false;
-                break;
-            }
-        }
+    let mut sorted: Vec<i32> = values.to_vec();
+    sorted.sort_unstable();
+    for window in sorted.windows(5) {
+        let consecutive = (0..4).all(|i| window[i + 1] - window[i] == 1);
         if consecutive {
-            return (true, straight_values[4]);
+            return (true, window[4]);
         }
     }
-    if is_wheel_straight(values) {
+    if is_wheel_straight(&sorted) {
         return (true, 5);
     }
     (false, 0)
@@ -286,16 +280,12 @@ fn compare_hands(hand1: &EvaluatedHand, hand2: &EvaluatedHand) -> i32 {
     if hand1.primary_value != hand2.primary_value {
         return hand1.primary_value - hand2.primary_value;
     }
-    for (v1, v2) in hand1
+    hand1
         .secondary_values
         .iter()
-        .zip(hand2.secondary_values.iter())
-    {
-        if v1 != v2 {
-            return v1 - v2;
-        }
-    }
-    0
+        .zip(&hand2.secondary_values)
+        .find_map(|(v1, v2)| (v1 != v2).then_some(v1 - v2))
+        .unwrap_or(0)
 }
 
 #[derive(Clone, Debug)]
