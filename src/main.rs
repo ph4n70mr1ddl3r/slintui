@@ -192,10 +192,10 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             .filter(|(_, suit)| Some(*suit) == flush_suit)
             .map(|(v, _)| *v)
             .collect();
-        let mut sorted_flush = flush_values;
+        let mut sorted_flush: Vec<i32> = flush_values.to_vec();
         sorted_flush.sort_unstable_by(|a, b| b.cmp(a));
         let top_five: Vec<i32> = sorted_flush.into_iter().take(5).collect();
-        if top_five.is_empty() {
+        if top_five.is_empty() || top_five.len() < 5 {
             return EvaluatedHand {
                 rank: HandRank::HighCard,
                 primary_value: values.first().copied().unwrap_or(0),
@@ -426,7 +426,7 @@ impl PokerGame {
         self.post_blinds();
         self.deal_hole_cards();
 
-        self.current_player = (self.dealer_position + 3) % self.players.len();
+        self.current_player = (self.dealer_position + 2) % self.players.len();
         debug_log!(
             "\n>>> {}'s turn ({})",
             self.players[self.current_player].name,
@@ -589,6 +589,9 @@ impl PokerGame {
                 }
             }
             "bet" | "raise" => {
+                if bet_amount <= 0 {
+                    return false;
+                }
                 let to_bet = bet_amount.max(self.current_bet + MIN_RAISE);
                 if player.chips >= to_bet {
                     let call_part = (self.current_bet - player.bet).max(0);
@@ -781,7 +784,6 @@ impl PokerGame {
     /// Checks if the current betting phase is complete and advances if so.
     fn check_phase_complete(&mut self) {
         if self.all_players_matched() {
-            thread::sleep(Duration::from_millis(PHASE_TRANSITION_TIME_MS));
             self.next_phase();
         }
     }
@@ -1020,15 +1022,15 @@ impl AppState {
         thread::sleep(Duration::from_millis(BOT_THINK_TIME_MS));
         loop {
             let mut game = self.game.borrow_mut();
-            if !game.is_bot_turn() {
+            if !game.is_bot_turn() || game.hand_complete {
                 break;
             }
             game.make_bot_move();
             game.check_phase_complete();
-            let done = game.hand_complete;
+            let hand_complete = game.hand_complete;
             drop(game);
             self.update_ui();
-            if done {
+            if hand_complete {
                 break;
             }
             thread::sleep(Duration::from_millis(PHASE_TRANSITION_TIME_MS));
