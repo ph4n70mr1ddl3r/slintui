@@ -172,12 +172,10 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         }
     } else if has_full_house {
         let mut sorted_three: Vec<_> = three_of_kind.clone();
-        sorted_three.sort_unstable();
-        sorted_three.reverse();
+        sorted_three.sort_unstable_by(|a, b| b.cmp(a));
         let three_val = sorted_three.first().copied().unwrap_or(0);
         let mut sorted_pairs: Vec<_> = pairs.clone();
-        sorted_pairs.sort_unstable();
-        sorted_pairs.reverse();
+        sorted_pairs.sort_unstable_by(|a, b| b.cmp(a));
         let pair_val = sorted_pairs.first().copied().unwrap_or(0);
         EvaluatedHand {
             rank: HandRank::FullHouse,
@@ -195,8 +193,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             .map(|(v, _)| *v)
             .collect();
         let mut sorted_flush = flush_values;
-        sorted_flush.sort_unstable();
-        sorted_flush.reverse();
+        sorted_flush.sort_unstable_by(|a, b| b.cmp(a));
         let top_five: Vec<i32> = sorted_flush.into_iter().take(5).collect();
         if top_five.is_empty() {
             return EvaluatedHand {
@@ -223,8 +220,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             .filter(|&&v| v != three_val)
             .copied()
             .collect();
-        kicker_values.sort_unstable();
-        kicker_values.reverse();
+        kicker_values.sort_unstable_by(|a, b| b.cmp(a));
         let kicker_values: Vec<i32> = kicker_values.into_iter().take(2).collect();
         EvaluatedHand {
             rank: HandRank::ThreeOfAKind,
@@ -233,8 +229,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         }
     } else if has_two_pair {
         let mut sorted_pairs: Vec<i32> = pairs.clone();
-        sorted_pairs.sort_unstable();
-        sorted_pairs.reverse();
+        sorted_pairs.sort_unstable_by(|a, b| b.cmp(a));
         let high_pair = sorted_pairs.first().copied().unwrap_or(0);
         let low_pair = sorted_pairs.get(1).copied().unwrap_or(0);
         let kicker = values
@@ -251,8 +246,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
     } else if let Some(&pair_val) = pairs.first() {
         let mut kicker_values: Vec<i32> =
             values.iter().filter(|&&v| v != pair_val).copied().collect();
-        kicker_values.sort_unstable();
-        kicker_values.reverse();
+        kicker_values.sort_unstable_by(|a, b| b.cmp(a));
         let kicker_values: Vec<i32> = kicker_values.into_iter().take(3).collect();
         EvaluatedHand {
             rank: HandRank::Pair,
@@ -261,8 +255,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         }
     } else {
         let mut sorted_values = values.clone();
-        sorted_values.sort_unstable();
-        sorted_values.reverse();
+        sorted_values.sort_unstable_by(|a, b| b.cmp(a));
         let top_five: Vec<i32> = sorted_values.into_iter().take(5).collect();
         EvaluatedHand {
             rank: HandRank::HighCard,
@@ -757,13 +750,6 @@ impl PokerGame {
         match phase {
             GamePhase::PreFlop if to_call == 0 => self.pick_random_action(no_action_options, rng),
             GamePhase::PreFlop => self.pick_random_action(call_options, rng),
-            _ if to_call == 0 => {
-                if rng.gen_range(0..100) < default_raise_chance {
-                    "raise"
-                } else {
-                    "call"
-                }
-            }
             _ => {
                 if rng.gen_range(0..100) < default_raise_chance {
                     "raise"
