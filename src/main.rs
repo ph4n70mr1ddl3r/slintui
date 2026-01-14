@@ -104,6 +104,8 @@ fn check_straight(values: &[i32]) -> (bool, i32) {
     (false, 0)
 }
 
+/// Evaluates a poker hand from hole cards and community cards.
+/// Returns an EvaluatedHand containing the rank, primary value, and secondary values for tie-breaking.
 fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand {
     let mut all_cards: Vec<(i32, &str)> = hole_cards
         .iter()
@@ -202,6 +204,13 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
         sorted_flush.sort_unstable();
         sorted_flush.reverse();
         let top_five: Vec<i32> = sorted_flush.into_iter().take(5).collect();
+        if top_five.is_empty() {
+            return EvaluatedHand {
+                rank: HandRank::HighCard,
+                primary_value: values.first().copied().unwrap_or(0),
+                secondary_values: values.get(1).map(|v| vec![*v]).unwrap_or_default(),
+            };
+        }
         EvaluatedHand {
             rank: HandRank::Flush,
             primary_value: top_five[0],
@@ -269,6 +278,7 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
     }
 }
 
+/// Compares two evaluated hands and returns positive if hand1 wins, negative if hand2 wins, 0 for tie.
 fn compare_hands(hand1: &EvaluatedHand, hand2: &EvaluatedHand) -> i32 {
     if hand1.rank != hand2.rank {
         return hand1.rank as i32 - hand2.rank as i32;
@@ -337,6 +347,7 @@ struct PokerGame {
 }
 
 impl PokerGame {
+    /// Creates a new poker game with two players (user and bot).
     fn new() -> Self {
         let players = vec![Player::new("You", true), Player::new("Bot", false)];
 
@@ -357,6 +368,7 @@ impl PokerGame {
         }
     }
 
+    /// Creates and shuffles a new deck of 52 cards.
     fn create_deck(&mut self) {
         self.deck.clear();
         let ranks = [
@@ -372,15 +384,18 @@ impl PokerGame {
         }
     }
 
+    /// Shuffles the current deck using the thread-local random number generator.
     fn shuffle_deck(&mut self) {
         let mut rng = thread_rng();
         self.deck.shuffle(&mut rng);
     }
 
+    /// Draws a card from the deck. Returns None if deck is empty.
     fn deal_card(&mut self) -> Option<Card> {
         self.deck.pop()
     }
 
+    /// Starts a new hand by resetting game state, dealing cards, and posting blinds.
     fn start_hand(&mut self) {
         debug_log!("\n=== STARTING NEW HAND ===");
 
@@ -437,6 +452,7 @@ impl PokerGame {
         debug_log!("Pot: ${}  |  Current bet: ${}", self.pot, self.current_bet);
     }
 
+    /// Posts small and big blinds for the current hand.
     fn post_blinds(&mut self) {
         let sb_player = (self.dealer_position + 1) % self.players.len();
         let bb_player = (self.dealer_position + 2) % self.players.len();
@@ -463,6 +479,7 @@ impl PokerGame {
         self.pot += self.small_blind + self.big_blind;
     }
 
+    /// Deals two hole cards to each player.
     fn deal_hole_cards(&mut self) {
         debug_log!("\n Dealing hole cards...");
         for i in 0..self.players.len() {
@@ -486,6 +503,7 @@ impl PokerGame {
         }
     }
 
+    /// Deals a specified number of community cards.
     fn deal_community_cards(&mut self, count: usize) {
         for _ in 0..count {
             if let Some(card) = self.deal_card() {
@@ -494,6 +512,7 @@ impl PokerGame {
         }
     }
 
+    /// Advances the game to the next phase (PreFlop -> Flop -> Turn -> River -> Showdown).
     fn next_phase(&mut self) {
         match self.phase {
             GamePhase::PreFlop => {
@@ -522,6 +541,7 @@ impl PokerGame {
         self.finish_phase_transition();
     }
 
+    /// Resets per-player bets and advances to the next player's turn.
     fn finish_phase_transition(&mut self) {
         self.current_bet = 0;
         for player in &mut self.players {
@@ -540,6 +560,7 @@ impl PokerGame {
         debug_log!("Pot: ${}  |  Current bet: $0", self.pot);
     }
 
+    /// Returns a human-readable name for the current game phase.
     fn get_phase_name(&self) -> &'static str {
         match self.phase {
             GamePhase::PreFlop => "Pre-Flop",
@@ -550,16 +571,20 @@ impl PokerGame {
         }
     }
 
+    /// Moves the current player pointer to the next player in rotation.
     fn move_to_next_player(&mut self) {
         self.current_player = (self.current_player + 1) % self.players.len();
     }
 
+    /// Checks if all active players have matched the current bet.
     fn all_players_matched(&self) -> bool {
         self.players
             .iter()
             .all(|p| p.bet == self.current_bet || p.cards.is_empty())
     }
 
+    /// Executes a player action (check, call, fold, bet, raise, all-in).
+    /// Returns true if the action was successful.
     fn player_action(&mut self, action: &str, amount: Option<i32>) -> bool {
         let player = &mut self.players[self.current_player];
         let bet_amount = amount.unwrap_or(0);
@@ -629,6 +654,7 @@ impl PokerGame {
         false
     }
 
+    /// Executes the bot's move based on hand strength and game state.
     fn make_bot_move(&mut self) {
         if self.hand_complete || self.phase == GamePhase::Showdown {
             return;
@@ -649,6 +675,7 @@ impl PokerGame {
         self.player_action(action, Some(bet_amount));
     }
 
+    /// Determines the bot's action based on hand strength, amount to call, and available chips.
     fn determine_bot_action(
         &self,
         hand_strength: i32,
@@ -727,6 +754,7 @@ impl PokerGame {
         (action, bet_amount)
     }
 
+    /// Selects a random action based on weighted probabilities for the current game phase.
     fn select_action_for_strength<R: Rng>(
         &self,
         phase: &GamePhase,
@@ -756,6 +784,7 @@ impl PokerGame {
         }
     }
 
+    /// Picks a random action from weighted options.
     fn pick_random_action<R: Rng>(
         &self,
         options: &[(i32, &'static str)],
@@ -773,6 +802,7 @@ impl PokerGame {
         options.last().map(|&(_, a)| a).unwrap_or("check")
     }
 
+    /// Checks if the current betting phase is complete and advances if so.
     fn check_phase_complete(&mut self) {
         if self.all_players_matched() {
             thread::sleep(Duration::from_millis(PHASE_TRANSITION_TIME_MS));
@@ -780,6 +810,7 @@ impl PokerGame {
         }
     }
 
+    /// Resolves the showdown by evaluating hands and distributing the pot.
     fn do_showdown(&mut self) {
         if self.showdown_done {
             return;
@@ -860,18 +891,21 @@ impl PokerGame {
         );
     }
 
+    /// Returns true if it's currently the user's turn to act.
     fn is_user_turn(&self) -> bool {
         self.players[self.current_player].is_user
             && !self.hand_complete
             && self.phase != GamePhase::Showdown
     }
 
+    /// Returns true if it's currently the bot's turn to act.
     fn is_bot_turn(&self) -> bool {
         !self.players[self.current_player].is_user
             && !self.hand_complete
             && self.phase != GamePhase::Showdown
     }
 
+    /// Returns the name of the player with more chips, or "TIE GAME!" if equal.
     fn get_winner_name(&self) -> &'static str {
         if self.players[0].chips > self.players[1].chips {
             "YOU WIN!"
@@ -882,10 +916,12 @@ impl PokerGame {
         }
     }
 
+    /// Returns true if the game is over (hand complete and someone has no chips).
     fn is_game_over(&self) -> bool {
         self.game_over || self.players.iter().any(|p| p.chips <= 0)
     }
 
+    /// Distributes the pot to the winning player(s). Remainder goes to first winner.
     fn distribute_pot(&mut self, winner_indices: &[usize]) {
         let split_amount = self.pot / winner_indices.len() as i32;
         let remainder = self.pot % winner_indices.len() as i32;
@@ -1555,5 +1591,92 @@ mod tests {
         assert_eq!(result.rank, HandRank::TwoPair);
         assert_eq!(result.primary_value, 14);
         assert_eq!(result.secondary_values, vec![13, 12]);
+    }
+
+    #[test]
+    fn test_compare_hands_straight_high_wins() {
+        let straight_low = EvaluatedHand {
+            rank: HandRank::Straight,
+            primary_value: 6,
+            secondary_values: vec![],
+        };
+        let straight_high = EvaluatedHand {
+            rank: HandRank::Straight,
+            primary_value: 9,
+            secondary_values: vec![],
+        };
+        assert!(compare_hands(&straight_high, &straight_low) > 0);
+        assert!(compare_hands(&straight_low, &straight_high) < 0);
+    }
+
+    #[test]
+    fn test_compare_hands_different_full_houses() {
+        let full_house_high = EvaluatedHand {
+            rank: HandRank::FullHouse,
+            primary_value: 14,
+            secondary_values: vec![13],
+        };
+        let full_house_low = EvaluatedHand {
+            rank: HandRank::FullHouse,
+            primary_value: 13,
+            secondary_values: vec![14],
+        };
+        assert!(compare_hands(&full_house_high, &full_house_low) > 0);
+        assert!(compare_hands(&full_house_low, &full_house_high) < 0);
+    }
+
+    #[test]
+    fn test_royal_flush_is_straight_flush() {
+        let hole = vec![create_card("10", "♠", 10), create_card("J", "♠", 11)];
+        let community = vec![
+            create_card("Q", "♠", 12),
+            create_card("K", "♠", 13),
+            create_card("A", "♠", 14),
+        ];
+        let result = evaluate_hand(&hole, &community);
+        assert_eq!(result.rank, HandRank::StraightFlush);
+        assert_eq!(result.primary_value, 14);
+    }
+
+    #[test]
+    fn test_compare_hands_four_of_kind_kicker() {
+        let four_high_kicker = EvaluatedHand {
+            rank: HandRank::FourOfAKind,
+            primary_value: 14,
+            secondary_values: vec![13],
+        };
+        let four_low_kicker = EvaluatedHand {
+            rank: HandRank::FourOfAKind,
+            primary_value: 14,
+            secondary_values: vec![2],
+        };
+        assert!(compare_hands(&four_high_kicker, &four_low_kicker) > 0);
+        assert!(compare_hands(&four_low_kicker, &four_high_kicker) < 0);
+    }
+
+    #[test]
+    fn test_compare_hands_flush_different_suits() {
+        let flush_high = EvaluatedHand {
+            rank: HandRank::Flush,
+            primary_value: 14,
+            secondary_values: vec![13, 12, 11, 10],
+        };
+        let flush_low = EvaluatedHand {
+            rank: HandRank::Flush,
+            primary_value: 13,
+            secondary_values: vec![12, 11, 10, 9],
+        };
+        assert!(compare_hands(&flush_high, &flush_low) > 0);
+        assert!(compare_hands(&flush_low, &flush_high) < 0);
+    }
+
+    #[test]
+    fn test_game_dealer_position_rotates() {
+        let mut game = PokerGame::new();
+        assert_eq!(game.dealer_position, 0);
+        game.dealer_position = (game.dealer_position + 1) % 2;
+        assert_eq!(game.dealer_position, 1);
+        game.dealer_position = (game.dealer_position + 1) % 2;
+        assert_eq!(game.dealer_position, 0);
     }
 }
