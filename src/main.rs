@@ -183,19 +183,20 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             secondary_values: vec![pair_val],
         }
     } else if is_flush {
-        let flush_suit = suit_counts
-            .iter()
-            .find(|(_, &count)| count >= 5)
-            .map(|(&suit, _)| suit);
-        let flush_values: Vec<i32> = all_cards
-            .iter()
-            .filter(|(_, suit)| Some(*suit) == flush_suit)
-            .map(|(v, _)| *v)
-            .collect();
+        let flush_values: Vec<i32> =
+            if let Some((suit, _)) = suit_counts.iter().find(|(_, &count)| count >= 5) {
+                all_cards
+                    .iter()
+                    .filter(|(_, card_suit)| *card_suit == *suit)
+                    .map(|(v, _)| *v)
+                    .collect()
+            } else {
+                Vec::new()
+            };
         let mut sorted_flush: Vec<i32> = flush_values.to_vec();
         sorted_flush.sort_unstable_by(|a, b| b.cmp(a));
         let top_five: Vec<i32> = sorted_flush.into_iter().take(5).collect();
-        if top_five.is_empty() || top_five.len() < 5 {
+        if top_five.len() < 5 {
             return EvaluatedHand {
                 rank: HandRank::HighCard,
                 primary_value: values.first().copied().unwrap_or(0),
@@ -253,14 +254,22 @@ fn evaluate_hand(hole_cards: &[Card], community_cards: &[Card]) -> EvaluatedHand
             primary_value: pair_val,
             secondary_values: kicker_values,
         }
+    } else if values.is_empty() {
+        EvaluatedHand {
+            rank: HandRank::HighCard,
+            primary_value: 0,
+            secondary_values: Vec::new(),
+        }
     } else {
         let mut sorted_values = values.clone();
         sorted_values.sort_unstable_by(|a, b| b.cmp(a));
         let top_five: Vec<i32> = sorted_values.into_iter().take(5).collect();
+        let primary = top_five.first().copied().unwrap_or(0);
+        let secondary: Vec<i32> = top_five.get(1..).map(|v| v.to_vec()).unwrap_or_default();
         EvaluatedHand {
             rank: HandRank::HighCard,
-            primary_value: top_five[0],
-            secondary_values: top_five[1..].to_vec(),
+            primary_value: primary,
+            secondary_values: secondary,
         }
     }
 }
@@ -833,7 +842,10 @@ impl PokerGame {
             .filter(|(_, p)| !p.cards.is_empty())
             .collect();
 
-        if active_players.len() == 1 {
+        if active_players.is_empty() {
+            debug_log!("\n  No active players - hand cancelled");
+            self.game_over = true;
+        } else if active_players.len() == 1 {
             let winner_idx = active_players[0].0;
             let winner_name = active_players[0].1.name.clone();
             debug_log!("\n  {} WINS ${} BY DEFAULT!", winner_name, self.pot);
